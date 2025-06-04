@@ -15,3 +15,4 @@ C:\MonogameProjects\HowlEngine.Physics\bin\Debug\net8.0\HowlEngine.Collections.p
 C:\MonogameProjects\HowlEngine.Physics\bin\Debug\net8.0\HowlEngine.Math.pdb
 C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\HowlEngine.Physics.csproj.AssemblyReference.cache
 C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\HowlEngi.B5BFC5DB.Up2Date
+C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\HowlEngine.Physics.sourcelink.json

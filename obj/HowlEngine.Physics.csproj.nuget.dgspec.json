@@ -25,7 +25,11 @@
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
-            "projectReferences": {}
+            "projectReferences": {
+              "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj": {
+                "projectPath": "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj"
+              }
+            }
           }
         },
         "warningProperties": {

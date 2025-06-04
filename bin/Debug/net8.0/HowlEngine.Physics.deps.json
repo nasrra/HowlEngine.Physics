@@ -16,6 +16,9 @@
         }
       },
       "HowlEngine.Collections/1.0.0": {
+        "dependencies": {
+          "HowlEngine.Math": "1.0.0"
+        },
         "runtime": {
           "HowlEngine.Collections.dll": {
             "assemblyVersion": "1.0.0",

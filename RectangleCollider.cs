@@ -1,6 +1,6 @@
 using HowlEngine.Math;
 
-using HowlEngine.Collections;
+using HowlEngine.Collections.Shapes;
 
 namespace HowlEngine.Physics;
 
