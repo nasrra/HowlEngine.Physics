@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HowlEngine.Physics")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+944952d2ed0255de510f3c16d8ddf91adfbf2ada")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c1ed8d86258ae335df77774bc1f84645cfb9d641")]
 [assembly: System.Reflection.AssemblyProductAttribute("HowlEngine.Physics")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HowlEngine.Physics")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

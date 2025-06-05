@@ -92,18 +92,18 @@ public class PhysicsSystem{
     /// </summary>
     /// <returns></returns>
 
-    public List<Rectangle> CopyBoxRigidBodyColliders(){
+    public List<Vector2[]> CopyBoxRigidBodyColliders(){
 
         // create the copy list.
 
-        List<Rectangle> colliders = new List<Rectangle>();
+        List<Vector2[]> colliders = new List<Vector2[]>();
         
         // copy all colliders.
         
         for(int i = 0; i < boxRigidBodies.Capacity; i++){
             if(boxRigidBodies.IsSlotActive(i) == true){
                 ref BoxRigidBody body = ref boxRigidBodies.GetData(i);
-                colliders.Add(body.collider);
+                colliders.Add(body.Shape.Vertices);
             }
         }
 
@@ -128,7 +128,7 @@ public class PhysicsSystem{
         for(int i = 0; i < circleRigidBodies.Capacity; i++){
             if(circleRigidBodies.IsSlotActive(i) == true){
                 ref CircleRigidBody body = ref circleRigidBodies.GetData(i);
-                colliders.Add(body.collider);
+                colliders.Add(body.Shape);
             }
         }
 
@@ -161,6 +161,7 @@ public class PhysicsSystem{
 
     public void FixedUpdate(float deltaTime){
         UpdateCircleRigidBodies(deltaTime);
+        UpdateBoxRigidBodies(deltaTime);
     }
 
 
@@ -175,18 +176,20 @@ public class PhysicsSystem{
             // get the current circle.
 
             ref CircleRigidBody a = ref circleRigidBodies.GetData(i);
-
-            // ensure the comparison between others only occurs once.
             
-            for(int j = i + 1; j < circleRigidBodies.Capacity; j++){
+            for(int j = i + 1; j < circleRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
                 
+                if(circleRigidBodies.IsSlotActive(j) == false){
+                    continue;
+                }
+
                 // get the other circle.
 
                 ref CircleRigidBody b = ref circleRigidBodies.GetData(j);
 
                 // if we currently intersect.
 
-                if(a.collider.Intersects(b.collider, out Vector2 normal, out float depth) == true){
+                if(a.Shape.Intersects(b.Shape, out Vector2 normal, out float depth) == true){
 
                     // push apart by half from eachother.
 
@@ -194,6 +197,39 @@ public class PhysicsSystem{
                     b.Position += normal * depth * 0.5f;
 
                 }
+            }
+        });
+    }
+
+    private void UpdateBoxRigidBodies(float deltaTime){
+        Parallel.For(0, boxRigidBodies.Capacity, i => {
+
+            // skip if not active.
+
+            if(boxRigidBodies.IsSlotActive(i) == false){
+                return;
+            }
+            
+            // get the current body.
+
+            ref BoxRigidBody a = ref boxRigidBodies.GetData(i);
+
+            for(int j = i + 1; j < boxRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
+    
+                if(boxRigidBodies.IsSlotActive(j) == false){
+                    continue;
+                }
+
+                // get the other body.
+
+                ref BoxRigidBody b = ref boxRigidBodies.GetData(j);
+
+                // if there is a current intersection.
+
+                if(a.Shape.SATIntersect(b.Shape.Vertices)){
+                    Console.WriteLine("intersection!");
+                }
+            
             }
         });
     }

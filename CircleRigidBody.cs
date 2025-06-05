@@ -9,20 +9,20 @@ public struct CircleRigidBody{
     /// Gets the collider of this physics body
     /// </summary>
     
-    public Circle collider;
+    public Circle Shape;
 
 
     /// <summary>
     /// Gets the body data of this physics body.
     /// </summary>
 
-    public PhysicsBody body;
+    public PhysicsBody PhysicsBody;
 
     public Vector2 Position {
-        get => collider.Position;
+        get => Shape.Position;
         set {
-            collider.Position = value;
-            body.Position = value;
+            Shape.Position = value;
+            PhysicsBody.Position = value;
         }
     }
 
@@ -36,7 +36,7 @@ public struct CircleRigidBody{
     /// <param name="restitution">The restitution (between 0 and 1) of this physics body.</param>
 
     public CircleRigidBody(Vector2 position, float radius, float density, float restitution){
-        collider = new Circle(position.X, position.Y, radius);
-        body = new PhysicsBody(position, collider.Area * density, density, restitution);
+        Shape = new Circle(position.X, position.Y, radius);
+        PhysicsBody = new PhysicsBody(position, Shape.Area * density, density, restitution);
     }
 }
