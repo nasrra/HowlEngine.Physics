@@ -25,68 +25,6 @@
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
-            "projectReferences": {
-              "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj": {
-                "projectPath": "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj"
-              }
-            }
-          }
-        },
-        "warningProperties": {
-          "warnAsError": [
-            "NU1605"
-          ]
-        },
-        "restoreAuditProperties": {
-          "enableAudit": "true",
-          "auditLevel": "low",
-          "auditMode": "direct"
-        }
-      },
-      "frameworks": {
-        "net8.0": {
-          "targetAlias": "net8.0",
-          "imports": [
-            "net461",
-            "net462",
-            "net47",
-            "net471",
-            "net472",
-            "net48",
-            "net481"
-          ],
-          "assetTargetFallback": true,
-          "warn": true,
-          "frameworkReferences": {
-            "Microsoft.NETCore.App": {
-              "privateAssets": "all"
-            }
-          },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.404/PortableRuntimeIdentifierGraph.json"
-        }
-      }
-    },
-    "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj": {
-      "version": "1.0.0",
-      "restore": {
-        "projectUniqueName": "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj",
-        "projectName": "HowlEngine.Math",
-        "projectPath": "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj",
-        "packagesPath": "C:\\Users\\naser\\.nuget\\packages\\",
-        "outputPath": "C:\\MonogameProjects\\HowlEngine.Math\\obj\\",
-        "projectStyle": "PackageReference",
-        "configFilePaths": [
-          "C:\\Users\\naser\\AppData\\Roaming\\NuGet\\NuGet.Config"
-        ],
-        "originalTargetFrameworks": [
-          "net8.0"
-        ],
-        "sources": {
-          "https://api.nuget.org/v3/index.json": {}
-        },
-        "frameworks": {
-          "net8.0": {
-            "targetAlias": "net8.0",
             "projectReferences": {}
           }
         },
@@ -148,9 +86,6 @@
             "projectReferences": {
               "C:\\MonogameProjects\\HowlEngine.Collections\\HowlEngine.Collections.csproj": {
                 "projectPath": "C:\\MonogameProjects\\HowlEngine.Collections\\HowlEngine.Collections.csproj"
-              },
-              "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj": {
-                "projectPath": "C:\\MonogameProjects\\HowlEngine.Math\\HowlEngine.Math.csproj"
               }
             }
           }

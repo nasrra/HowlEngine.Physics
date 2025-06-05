@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HowlEngine.Collections\HowlEngine.Collections.csproj" />
-    <ProjectReference Include="..\HowlEngine.Math\HowlEngine.Math.csproj" />
   </ItemGroup>
 
 </Project>

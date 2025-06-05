@@ -1,4 +1,4 @@
-using HowlEngine.Math;
+using System.Numerics;
 
 namespace HowlEngine.Physics;
 
@@ -45,6 +45,6 @@ public struct PhysicsBody{
         Position        = position;
         Mass            = mass;
         Density         = density;
-        Restitution     = Math.Util.Clamp(restitution,0,1);
+        Restitution     = Math.Clamp(restitution,0,1);
     }
 }

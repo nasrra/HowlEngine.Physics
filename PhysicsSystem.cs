@@ -1,4 +1,5 @@
-using HowlEngine.Math;
+using System.Numerics;
+using HowlEngine.Collections.Shapes;
 using HowlEngine.Collections;
 
 namespace HowlEngine.Physics;
@@ -91,11 +92,11 @@ public class PhysicsSystem{
     /// </summary>
     /// <returns></returns>
 
-    public List<Collections.Shapes.Rectangle> CopyBoxRigidBodyColliders(){
+    public List<Rectangle> CopyBoxRigidBodyColliders(){
 
         // create the copy list.
 
-        List<Collections.Shapes.Rectangle> colliders = new List<Collections.Shapes.Rectangle>();
+        List<Rectangle> colliders = new List<Rectangle>();
         
         // copy all colliders.
         
@@ -116,11 +117,11 @@ public class PhysicsSystem{
     /// </summary>
     /// <returns></returns>
 
-    public List<Collections.Shapes.Circle> CopyCircleRigidBodyColliders(){
+    public List<Circle> CopyCircleRigidBodyColliders(){
 
         // create the copy list.
 
-        List<Collections.Shapes.Circle> colliders = new List<Collections.Shapes.Circle>();
+        List<Circle> colliders = new List<Circle>();
 
         // copy all colliders.
 

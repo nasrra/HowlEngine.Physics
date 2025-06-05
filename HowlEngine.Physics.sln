@@ -6,8 +6,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HowlEngine.Physics", "HowlE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HowlEngine.Collections", "..\HowlEngine.Collections\HowlEngine.Collections.csproj", "{35101E4E-11B4-4853-8372-C2DAA094DCCB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HowlEngine.Math", "..\HowlEngine.Math\HowlEngine.Math.csproj", "{DAE0F599-2E78-4F40-B91C-52412184C499}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

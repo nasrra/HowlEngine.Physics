@@ -10,9 +10,7 @@ C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\refint\HowlEngine.Physic
 C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\HowlEngine.Physics.pdb
 C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\ref\HowlEngine.Physics.dll
 C:\MonogameProjects\HowlEngine.Physics\bin\Debug\net8.0\HowlEngine.Collections.dll
-C:\MonogameProjects\HowlEngine.Physics\bin\Debug\net8.0\HowlEngine.Math.dll
 C:\MonogameProjects\HowlEngine.Physics\bin\Debug\net8.0\HowlEngine.Collections.pdb
-C:\MonogameProjects\HowlEngine.Physics\bin\Debug\net8.0\HowlEngine.Math.pdb
 C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\HowlEngine.Physics.csproj.AssemblyReference.cache
 C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\HowlEngi.B5BFC5DB.Up2Date
 C:\MonogameProjects\HowlEngine.Physics\obj\Debug\net8.0\HowlEngine.Physics.sourcelink.json

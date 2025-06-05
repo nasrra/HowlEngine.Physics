@@ -1,7 +1,7 @@
 using System;
+using System.Numerics;
 using System.Threading.Tasks;
 using HowlEngine.Collections;
-using HowlEngine.Math;
 
 namespace HowlEngine.Physics;
 

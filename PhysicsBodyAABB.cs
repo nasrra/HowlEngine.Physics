@@ -1,4 +1,4 @@
-using HowlEngine.Math;
+using System.Numerics;
 
 namespace HowlEngine.Physics;
 

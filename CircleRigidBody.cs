@@ -1,4 +1,4 @@
-using HowlEngine.Math;
+using System.Numerics;
 using HowlEngine.Collections.Shapes;
 using HowlEngine.Physics;
 
