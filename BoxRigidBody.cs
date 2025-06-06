@@ -56,12 +56,12 @@ public struct BoxRigidBody{
         
         // calculate relative positions.
         
-        float halfWidth = width * 0.5f;
-        float halfHeight = height * 0.5f;
-        float left      = position.X - halfWidth;
-        float right     = position.X + halfWidth;
-        float top       = position.Y - halfHeight;
-        float bottom    = position.Y + halfHeight;
+        float halfWidth     = width * 0.5f;
+        float halfHeight    = height * 0.5f;
+        float left          = position.X - halfWidth;
+        float right         = position.X + halfWidth;
+        float top           = position.Y - halfHeight;
+        float bottom        = position.Y + halfHeight;
 
         Shape = new Polygon(
             new Vector2[]{

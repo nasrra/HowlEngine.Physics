@@ -160,13 +160,71 @@ public class PhysicsSystem{
 
 
     public void FixedUpdate(float deltaTime){
-        CircleRigidBodies(deltaTime);
-        BoxRigidBodies(deltaTime);
-        CircleAgainstBoxRigidBodies(deltaTime);
+        
+        MovementStep(deltaTime);
+        
+        CircleRigidBodyCollisions(deltaTime);
+        BoxRigidBodyCollisions(deltaTime);
+        CircleBoxRigidBodyCollisions(deltaTime);
     }
 
+    private void MovementStep(float deltaTime){
+        
+        // move box rigidbodies.
+        
+        Parallel.For(0, boxRigidBodies.Capacity, i=>{
+            
+            // skip if not active.
+            
+            if(boxRigidBodies.IsSlotActive(i) == false){
+                return;
+            }
 
-    private void CircleRigidBodies(float deltaTime){
+            // get the body.
+            
+            ref BoxRigidBody body = ref boxRigidBodies.GetData(i);
+            
+            // apply force.
+
+            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Force;
+            body.PhysicsBody.Force = Vector2.Zero;
+
+
+            // movement
+
+            body.Position += body.PhysicsBody.LinearVelocity;
+        
+        });
+
+
+        // move circle rigidbodies.
+        
+        Parallel.For(0, circleRigidBodies.Capacity, i=>{
+            
+            // skip if not active.
+            
+            if(circleRigidBodies.IsSlotActive(i) == false){
+                return;
+            }
+
+            // get the body.
+
+            ref CircleRigidBody body = ref circleRigidBodies.GetData(i);
+
+            // apply force.
+
+            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Force;
+            body.PhysicsBody.Force = Vector2.Zero;
+
+
+            // movement
+
+            body.Position += body.PhysicsBody.LinearVelocity;
+        
+        });
+    }
+
+    private void CircleRigidBodyCollisions(float deltaTime){
         Parallel.For(0, circleRigidBodies.Capacity, i =>{
             // skip if the slot is not active.
             
@@ -202,7 +260,7 @@ public class PhysicsSystem{
         });
     }
 
-    private void BoxRigidBodies(float deltaTime){
+    private void BoxRigidBodyCollisions(float deltaTime){
         Parallel.For(0, boxRigidBodies.Capacity, i => {
             // skip if not active.
 
@@ -239,7 +297,7 @@ public class PhysicsSystem{
         });
     }
 
-    private void CircleAgainstBoxRigidBodies(float deltaTime){
+    private void CircleBoxRigidBodyCollisions(float deltaTime){
         Parallel.For(0,boxRigidBodies.Capacity, i => {
             
             // skip if not active.
@@ -273,10 +331,33 @@ public class PhysicsSystem{
 
                     a.Position -= normal * depth * 0.5f;
                     b.Position += normal * depth * 0.5f;
+                
+                    ResolveCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);                
                 }
             }
 
 
         });
+    }
+
+    private void ResolveCollision(ref PhysicsBody a, ref PhysicsBody b, Vector2 normal, float depth){
+        
+        
+        Vector2 relativeVelocity  = b.LinearVelocity - a.LinearVelocity;
+        
+        // choose the minimum restitution as the softer body would absorb the force of the collision.
+        // E.g. pillow (restitution 0.0) would absorb brick (restitution 0.65);
+
+        float restitution = MathF.Min(a.Restitution, b.Restitution); 
+    
+        // the magnitude of the impulse to apply to both bodies when colliding.
+
+        float j = -(1f + restitution) * Vector2.Dot(relativeVelocity, normal);
+        j /= (1/a.Mass) + (1/b.Mass);
+        
+        // apply the impulse to the colliding bodiesin relation to the axis that they are colliding.
+
+        a.LinearVelocity -= j/a.Mass*normal;
+        b.LinearVelocity += j/b.Mass*normal;
     }
 }

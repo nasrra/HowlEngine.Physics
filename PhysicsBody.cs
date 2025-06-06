@@ -11,6 +11,18 @@ public struct PhysicsBody{
     
     public Vector2 Position;
     
+    public Vector2 LinearVelocity;
+
+
+    public Vector2 RotationalVelocity;
+
+
+    /// <summary>
+    /// Gets and set the direction and magnitude of a given movement to be applied to this body.
+    /// </summary>
+
+    public Vector2 Force = Vector2.Zero;
+
 
     /// <summary>
     /// Gets the mass of this physics body.
