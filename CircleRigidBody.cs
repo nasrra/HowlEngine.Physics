@@ -2,7 +2,7 @@ using System.Numerics;
 using HowlEngine.Collections.Shapes;
 using HowlEngine.Physics;
 
-public struct CircleRigidBody{
+public struct CirclePhysicsBody{
     
     
     /// <summary>
@@ -35,7 +35,7 @@ public struct CircleRigidBody{
     /// <param name="density">The density of this physics body.</param>
     /// <param name="restitution">The restitution (between 0 and 1) of this physics body.</param>
 
-    public CircleRigidBody(Vector2 position, float radius, float density, float restitution){
+    public CirclePhysicsBody(Vector2 position, float radius, float density, float restitution){
         Shape = new Circle(position.X, position.Y, radius);
         PhysicsBody = new PhysicsBody(position, Shape.Area * density, density, restitution);
     }

@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace HowlEngine.Physics;
 
-public struct PolygonRigidBody{
+public struct PolygonPhysicsBody{
     
     /// <summary>
     /// Gets the collider of this rigid body.
@@ -19,7 +19,10 @@ public struct PolygonRigidBody{
 
     public Vector2 Position {
         get => PhysicsBody.Position;
-        set => PhysicsBody.Position = value;
+        set{
+            PhysicsBody.Position = value;
+            Shape.Position = value;
+        }
     }
 
     public float Rotation {
@@ -36,7 +39,7 @@ public struct PolygonRigidBody{
     /// <param name="density">The density of the polygon.</param>
     /// <param name="restitution">The restiturion ,between 1 and 0, of the polygon.</param>
 
-    public PolygonRigidBody(Vector2[] vertices, Vector2 position, float area, float density, float restitution){
+    public PolygonPhysicsBody(Vector2[] vertices, Vector2 position, float area, float density, float restitution){
         Shape = new Polygon(vertices, position, 0);
         PhysicsBody = new PhysicsBody(position, area * density, density, restitution);
     }

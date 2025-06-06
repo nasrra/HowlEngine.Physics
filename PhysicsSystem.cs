@@ -6,48 +6,148 @@ namespace HowlEngine.Physics;
 
 public class PhysicsSystem{
 
-    private StructPool<BoxRigidBody> boxRigidBodies;
-    private StructPool<CircleRigidBody> circleRigidBodies;
+    private StructPool<PolygonPhysicsBody> polygonRigidBodies;
+    private StructPool<CirclePhysicsBody> circleRigidBodies;
+    private StructPool<PolygonPhysicsBody> polygonKinematicBodies;
+    private StructPool<CirclePhysicsBody> circleKinematicBodies;
 
 
-    public PhysicsSystem(int boxRigidBodyAmount, int circleRigidBodyAmount){
-        boxRigidBodies          = new StructPool<BoxRigidBody>(boxRigidBodyAmount);
-        circleRigidBodies       = new StructPool<CircleRigidBody>(circleRigidBodyAmount);
+    public PhysicsSystem(
+        int polygonRigidBodies, int polygonKinematicBodies, 
+        int circleRigidBodies, int circleKinematicBodies){
+        this.polygonRigidBodies         = new StructPool<PolygonPhysicsBody>(polygonRigidBodies);
+        this.polygonKinematicBodies     = new StructPool<PolygonPhysicsBody>(polygonKinematicBodies);
+        this.circleRigidBodies          = new StructPool<CirclePhysicsBody>(circleRigidBodies);
+        this.circleKinematicBodies      = new StructPool<CirclePhysicsBody>(circleKinematicBodies);
+    }
+
+
+
+    public Token AllocateBoxRigidBody(Vector2 position, float width, float height, float density, float restitution){
+        float halfWidth     = width * 0.5f;
+        float halfHeight    = height * 0.5f;
+        float left          = position.X - halfWidth;
+        float right         = position.X + halfWidth;
+        float top           = position.Y - halfHeight;
+        float bottom        = position.Y + halfHeight;
+        return AllocatePolygonRigidBody(
+            new PolygonPhysicsBody(
+                [
+                    new Vector2(left, top),
+                    new Vector2(right, top),
+                    new Vector2(right, bottom),
+                    new Vector2(left, bottom)
+                ], 
+                position,
+                width * height,
+                density,
+                restitution
+            )
+        );        
+    }
+
+    /// <summary>
+    /// Allocates a physics body to the internal data structure.
+    /// </summary>
+    /// <param name="body"></param>
+    /// <returns></returns>
+
+    public Token AllocateBoxKinematicBody(Vector2 position, float width, float height, float density, float restitution){
+        float halfWidth     = width * 0.5f;
+        float halfHeight    = height * 0.5f;
+        float left          = position.X - halfWidth;
+        float right         = position.X + halfWidth;
+        float top           = position.Y - halfHeight;
+        float bottom        = position.Y + halfHeight;
+        return AllocatePolygonKinematicBody(
+            new PolygonPhysicsBody(
+                [
+                    new Vector2(left, top),
+                    new Vector2(right, top),
+                    new Vector2(right, bottom),
+                    new Vector2(left, bottom)
+                ], 
+                position,
+                width * height,
+                density,
+                restitution
+            )
+        );        
     }
 
 
     /// <summary>
-    /// Allocates a rigid box body to the internal data structure.
+    /// Allocates a physics body to the internal data structure.
     /// </summary>
     /// <param name="body"></param>
     /// <returns>A Token to reference the newly allocated PhysicsBody.</returns>
-    public Token AllocateBoxRigidBody(BoxRigidBody body){
+    public Token AllocatePolygonRigidBody(PolygonPhysicsBody body){
         // allocate.
-        Token token = boxRigidBodies.Allocate();
+        Token token = polygonRigidBodies.Allocate();
         if(token.Valid == false){
             return token;
         }
 
-        boxRigidBodies.TryGetData(ref token).Data = body;
+        polygonRigidBodies.TryGetData(ref token).Data = body;
         return token;
     }
 
 
     /// <summary>
-    /// Frees a rigid box body in the internal data structure at a given index.
+    /// Allocates a physics body to the internal data structure.
+    /// </summary>
+    /// <param name="body"></param>
+    /// <returns>A Token to reference the newly allocated PhysicsBody.</returns>
+    public Token AllocatePolygonKinematicBody(PolygonPhysicsBody body){
+        // allocate.
+        Token token = polygonKinematicBodies.Allocate();
+        if(token.Valid == false){
+            return token;
+        }
+
+        polygonKinematicBodies.TryGetData(ref token).Data = body;
+        return token;
+    }
+
+
+    /// <summary>
+    /// Frees a polygon physics body (box, triangle, hexagon, etc) in the internal data structure at a given index.
     /// </summary>
     /// <param name="token">The specified token used as the index to free in the internal data structure..</param>
 
-    public void FreeBoxRigidBody(ref Token token){
-        boxRigidBodies.Free(token.Id);
+    public void FreePolygonRigidBody(ref Token token){
+        polygonRigidBodies.Free(token.Id);
     }
-
+    
     /// <summary>
-    /// Frees a rigid box body in the internal data structure at a given index.
+    /// Frees a polygon physics body (box, triangle, hexagon, etc) in the internal data structure at a given index.
     /// </summary>
     /// <param name="index">The specified index to free at.</param>
-    public void FreeBoxRigidBody(int index){
-        boxRigidBodies.Free(index);
+    
+    public void FreePolygonRigidBody(int index){
+        polygonRigidBodies.Free(index);
+    }
+
+
+
+
+    /// <summary>
+    /// Frees a physics body in the internal data structure at a given index.
+    /// </summary>
+    /// <param name="index">The specified index to free at.</param>
+    
+    public void FreePolygonKinematicBody(ref Token token){
+        polygonKinematicBodies.Free(token.Id);
+    }
+
+
+    /// <summary>
+    /// Frees a physics body in the internal data structure at a given index.
+    /// </summary>
+    /// <param name="index">The specified index to free at.</param>
+    
+    public void FreePolygonKinematicBody(int index){
+        polygonKinematicBodies.Free(index);
     }
 
 
@@ -56,14 +156,20 @@ public class PhysicsSystem{
     /// </summary>
     /// <param name="body"></param>
     /// <returns>A Token to reference the newly allocated PhysicsBody.</returns>
-    public Token AllocateCircleRigidBody(CircleRigidBody body){
+    public Token AllocateCircleRigidBody(Vector2 position, float radius, float density, float restitution){
         // allocate.
         Token token = circleRigidBodies.Allocate();
         if(token.Valid == false){
             return token;
         }
 
-        circleRigidBodies.TryGetData(ref token).Data = body;
+        circleRigidBodies.TryGetData(ref token).Data = new CirclePhysicsBody(
+            position,
+            radius,
+            density,
+            restitution
+        );
+        
         return token;
     }
 
@@ -79,7 +185,7 @@ public class PhysicsSystem{
 
 
     /// <summary>
-    /// Frees a rigid box body in the internal data structure at a given index.
+    /// Frees a rigid circle body in the internal data structure at a given index.
     /// </summary>
     /// <param name="index">The specified index to free at.</param>
     public void FreeCircleRigidBody(int index){
@@ -88,11 +194,56 @@ public class PhysicsSystem{
 
 
     /// <summary>
-    /// Gets a copy of all rigid box body colliders in this physics system.
+    /// Allocates a physics body to the internal data structure.
+    /// </summary>
+    /// <param name="body"></param>
+    /// <returns></returns>
+
+    public Token AllocateCircleKinematicBody(Vector2 position, float radius, float density, float restitution){
+        
+        // allcate.
+        Token token = circleKinematicBodies.Allocate();
+
+        if(token.Valid == false){
+            return token;
+        }
+
+        circleKinematicBodies.TryGetData(ref token).Data = new CirclePhysicsBody(
+            position,
+            radius,
+            density,
+            restitution
+        );
+        return token;
+    }
+
+
+    /// <summary>
+    /// Frees a physics body in the internal data structure at a given index.
+    /// </summary>
+    /// <param name="index">The specified index to free at.</param>
+    
+    public void FreeCircleKinematicBody(ref Token token){
+        circleKinematicBodies.Free(token.Id);
+    }
+
+
+    /// <summary>
+    /// Frees a physics body in the internal data structure at a given index.
+    /// </summary>
+    /// <param name="index">The specified index to free at.</param>
+    
+    public void FreeCircleKinematicBody(int index){
+        circleKinematicBodies.Free(index);
+    }
+
+
+    /// <summary>
+    /// Gets a copy of all rigid polygon body colliders in this physics system.
     /// </summary>
     /// <returns></returns>
 
-    public List<Vector2[]> CopyBoxRigidBodyColliders(){
+    public List<Vector2[]> CopyPolygonRigidBodyColliders(){
 
         // create the copy list.
 
@@ -100,9 +251,9 @@ public class PhysicsSystem{
         
         // copy all colliders.
         
-        for(int i = 0; i < boxRigidBodies.Capacity; i++){
-            if(boxRigidBodies.IsSlotActive(i) == true){
-                ref BoxRigidBody body = ref boxRigidBodies.GetData(i);
+        for(int i = 0; i < polygonRigidBodies.Capacity; i++){
+            if(polygonRigidBodies.IsSlotActive(i) == true){
+                ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);
                 colliders.Add(body.Shape.Vertices);
             }
         }
@@ -110,6 +261,29 @@ public class PhysicsSystem{
         return colliders;
     }
 
+
+    /// <summary>
+    /// Gets a copy of all kinematic polygon body colliders in this physics system.
+    /// </summary>
+    /// <returns></returns>
+
+    public List<Vector2[]> CopyPolygonKinematicColliders(){
+
+        // create the copy list.
+
+        List<Vector2[]> colliders = new List<Vector2[]>();
+        
+        // copy all colliders.
+        
+        for(int i = 0; i < polygonKinematicBodies.Capacity; i++){
+            if(polygonKinematicBodies.IsSlotActive(i) == true){
+                ref PolygonPhysicsBody body = ref polygonKinematicBodies.GetData(i);
+                colliders.Add(body.Shape.Vertices);
+            }
+        }
+
+        return colliders;
+    }
 
 
     /// <summary>
@@ -127,7 +301,7 @@ public class PhysicsSystem{
 
         for(int i = 0; i < circleRigidBodies.Capacity; i++){
             if(circleRigidBodies.IsSlotActive(i) == true){
-                ref CircleRigidBody body = ref circleRigidBodies.GetData(i);
+                ref CirclePhysicsBody body = ref circleRigidBodies.GetData(i);
                 colliders.Add(body.Shape);
             }
         }
@@ -138,23 +312,23 @@ public class PhysicsSystem{
 
     
     /// <summary>
-    /// Gets a RefView to directly access a BoxRigidBody within this physics system.
+    /// Gets a RefView to directly access a physics body within this physics system.
     /// </summary>
     /// <param name="token">The Token used to retrieve the PhysicsBody from the internal data structure.</param>
     /// <returns>A RefView of the retrieved data by the specified Token.</returns>
 
-    public RefView<BoxRigidBody> GetBoxRigidBody(ref Token token){
-        return boxRigidBodies.TryGetData(ref token);
+    public RefView<PolygonPhysicsBody> GetPolygonRigidBody(ref Token token){
+        return polygonRigidBodies.TryGetData(ref token);
     }
 
 
     /// <summary>
-    /// Gets a RefView to directly access a CircleRigidBody within this physics system.
+    /// Gets a RefView to directly access a physics body within this physics system.
     /// </summary>
     /// <param name="token">The Token used to retrieve the PhysicsBody from the internal data structure.</param>
     /// <returns>A RefView of the retrieved data by the specified Token.</returns>
 
-    public RefView<CircleRigidBody> GetCircleRigidBody(ref Token token){
+    public RefView<CirclePhysicsBody> GetCircleRigidBody(ref Token token){
         return circleRigidBodies.TryGetData(ref token);
     }
 
@@ -163,26 +337,33 @@ public class PhysicsSystem{
         
         MovementStep(deltaTime);
         
-        CircleRigidBodyCollisions(deltaTime);
-        BoxRigidBodyCollisions(deltaTime);
-        CircleBoxRigidBodyCollisions(deltaTime);
+        // handle rigid body collisions.
+
+        CircleRigidCollisions(deltaTime);
+        PolygonRigidCollisions(deltaTime);
+        CircleToPolygonRigidCollisions(deltaTime);
+        
+        // handle kinematic body collisions.
+
+        CircleRigidToPolygonKinematicCollisions(deltaTime);
+        PolygonRigidToPolygonKinematicCollisions(deltaTime);
     }
 
     private void MovementStep(float deltaTime){
         
         // move box rigidbodies.
         
-        Parallel.For(0, boxRigidBodies.Capacity, i=>{
+        Parallel.For(0, polygonRigidBodies.Capacity, i=>{
             
             // skip if not active.
             
-            if(boxRigidBodies.IsSlotActive(i) == false){
+            if(polygonRigidBodies.IsSlotActive(i) == false){
                 return;
             }
 
             // get the body.
             
-            ref BoxRigidBody body = ref boxRigidBodies.GetData(i);
+            ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);
             
             // apply force.
             // force = mass * acceleration.
@@ -212,11 +393,12 @@ public class PhysicsSystem{
 
             // get the body.
 
-            ref CircleRigidBody body = ref circleRigidBodies.GetData(i);
+            ref CirclePhysicsBody body = ref circleRigidBodies.GetData(i);
 
             // apply force.
 
-            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Force;
+            body.PhysicsBody.Acceleration = body.PhysicsBody.Force / body.PhysicsBody.Mass; 
+            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Acceleration;
             body.PhysicsBody.Force = Vector2.Zero;
 
 
@@ -227,7 +409,7 @@ public class PhysicsSystem{
         });
     }
 
-    private void CircleRigidBodyCollisions(float deltaTime){
+    private void CircleRigidCollisions(float deltaTime){
         Parallel.For(0, circleRigidBodies.Capacity, i =>{
             // skip if the slot is not active.
             
@@ -237,7 +419,7 @@ public class PhysicsSystem{
 
             // get the current circle.
 
-            ref CircleRigidBody a = ref circleRigidBodies.GetData(i);
+            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(i);
             
             for(int j = i + 1; j < circleRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
                 
@@ -247,7 +429,7 @@ public class PhysicsSystem{
 
                 // get the other circle.
 
-                ref CircleRigidBody b = ref circleRigidBodies.GetData(j);
+                ref CirclePhysicsBody b = ref circleRigidBodies.GetData(j);
 
                 // if there is an intersection between them.
 
@@ -263,28 +445,28 @@ public class PhysicsSystem{
         });
     }
 
-    private void BoxRigidBodyCollisions(float deltaTime){
-        Parallel.For(0, boxRigidBodies.Capacity, i => {
+    private void PolygonRigidCollisions(float deltaTime){
+        Parallel.For(0, polygonRigidBodies.Capacity, i => {
             // skip if not active.
 
-            if(boxRigidBodies.IsSlotActive(i) == false){
+            if(polygonRigidBodies.IsSlotActive(i) == false){
                 return;
                 // continue;
             }
             
             // get the current body.
 
-            ref BoxRigidBody a = ref boxRigidBodies.GetData(i);
+            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
 
-            for(int j = i + 1; j < boxRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
+            for(int j = i + 1; j < polygonRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
     
-                if(boxRigidBodies.IsSlotActive(j) == false){
+                if(polygonRigidBodies.IsSlotActive(j) == false){
                     continue;
                 }
 
                 // get the other body.
 
-                ref BoxRigidBody b = ref boxRigidBodies.GetData(j);
+                ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(j);
 
                 // if there is an intersection between them.
 
@@ -294,24 +476,26 @@ public class PhysicsSystem{
                     
                     a.Position -= normal * depth * 0.5f;
                     b.Position += normal * depth * 0.5f;
+
+                    ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
                 }
             
             }
         });
     }
 
-    private void CircleBoxRigidBodyCollisions(float deltaTime){
-        Parallel.For(0,boxRigidBodies.Capacity, i => {
+    private void CircleToPolygonRigidCollisions(float deltaTime){
+        Parallel.For(0,polygonRigidBodies.Capacity, i => {
             
             // skip if not active.
 
-            if(boxRigidBodies.IsSlotActive(i) == false){
+            if(polygonRigidBodies.IsSlotActive(i) == false){
                 return;
             }
 
             // get the current body.
 
-            ref BoxRigidBody a = ref boxRigidBodies.GetData(i);
+            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
 
             for(int j = 0; j < circleRigidBodies.Capacity; j++){
                 
@@ -323,19 +507,18 @@ public class PhysicsSystem{
 
                 // get the other body.
 
-                ref CircleRigidBody b = ref circleRigidBodies.GetData(j);
+                ref CirclePhysicsBody b = ref circleRigidBodies.GetData(j);
 
                 // if there is an intersection between them.
                 
                 if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
-                    Console.WriteLine(1);
 
                     // push apart from eachother.
 
                     a.Position -= normal * depth * 0.5f;
                     b.Position += normal * depth * 0.5f;
                 
-                    ResolveCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);                
+                    ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);                
                 }
             }
 
@@ -343,7 +526,102 @@ public class PhysicsSystem{
         });
     }
 
-    private void ResolveCollision(ref PhysicsBody a, ref PhysicsBody b, Vector2 normal, float depth){
+
+    /// <summary>
+    /// Handles collisions between circle rigid bodies and polygon kinematic bodies.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void CircleRigidToPolygonKinematicCollisions(float deltaTime){
+        Parallel.For(0,circleRigidBodies.Capacity, i => {
+            
+            // skip if not active.
+            
+            if(circleRigidBodies.IsSlotActive(i) == false){
+                return;
+            }
+
+            // get the current body.
+
+            ref CirclePhysicsBody rigid = ref circleRigidBodies.GetData(i);
+
+            for(int j = 0; j < polygonKinematicBodies.Capacity; j++){
+
+                // skip if not active.
+
+                if(polygonKinematicBodies.IsSlotActive(j) == false){
+                    continue;
+                }
+
+                // get the other body.
+
+                ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(j);
+
+                // if there is an intersection between them.
+
+                if(Collections.Shapes.Util.Intersect(ref kinematic.Shape, ref rigid.Shape, out Vector2 normal, out float depth)){
+
+                    // push the rigid away from the kinematic.
+
+                    rigid.Position += normal * depth;
+
+                    // collision reponse.
+
+                    ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);                
+                }
+            }
+
+        });
+    }
+
+
+    /// <summary>
+    /// Handles collisions between polygon rigid bodies and polygon kinematic bodies.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void PolygonRigidToPolygonKinematicCollisions(float deltaTime){
+        Parallel.For(0, polygonRigidBodies.Capacity, i => {
+            // skip if not active.
+
+            if(polygonRigidBodies.IsSlotActive(i) == false){
+                return;
+                // continue;
+            }
+            
+            // get the current body.
+
+            ref PolygonPhysicsBody rigid = ref polygonRigidBodies.GetData(i);
+
+            for(int j = 0; j < polygonKinematicBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
+    
+                if(polygonKinematicBodies.IsSlotActive(j) == false){
+                    continue;
+                }
+
+                // get the other body.
+
+                ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(j);
+
+                // if there is an intersection between them.
+
+                if(Collections.Shapes.Util.Intersect(ref rigid.Shape, ref kinematic.Shape, out Vector2 normal, out float depth)){
+                    
+                    // push the rigid away from the kinematic.
+                    
+                    rigid.Position -= normal * depth;
+
+                    // collision reponse.
+
+                    ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);
+                }
+            
+            }
+        });
+    }
+
+
+    private void ResolveRigidToRigidCollision(ref PhysicsBody a, ref PhysicsBody b, Vector2 normal, float depth){
         
         
         Vector2 relativeVelocity  = b.LinearVelocity - a.LinearVelocity;
@@ -362,5 +640,26 @@ public class PhysicsSystem{
 
         a.LinearVelocity -= j/a.Mass*normal;
         b.LinearVelocity += j/b.Mass*normal;
+    }
+
+
+    private void ResolveRigidToKinematicCollision(ref PhysicsBody rigid, ref PhysicsBody kinematic, Vector2 normal, float depth){
+        
+        
+        Vector2 relativeVelocity  = kinematic.LinearVelocity - rigid.LinearVelocity;
+        
+        // choose the minimum restitution as the softer body would absorb the force of the collision.
+        // E.g. pillow (restitution 0.0) would absorb brick (restitution 0.65);
+
+        float restitution = MathF.Min(rigid.Restitution, kinematic.Restitution); 
+    
+        // the magnitude of the impulse to apply to both bodies when colliding.
+
+        float j = -(1f + restitution) * Vector2.Dot(relativeVelocity, normal);
+        j /= (1/rigid.Mass) + (1/kinematic.Mass);
+        
+        // apply the impulse to the colliding rigid body in relation to the axis that the two bodies are colliding.
+
+        rigid.LinearVelocity -= j/rigid.Mass*normal;
     }
 }
