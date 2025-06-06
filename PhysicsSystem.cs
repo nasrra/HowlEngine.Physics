@@ -160,12 +160,13 @@ public class PhysicsSystem{
 
 
     public void FixedUpdate(float deltaTime){
-        UpdateCircleRigidBodies(deltaTime);
-        UpdateBoxRigidBodies(deltaTime);
+        CircleRigidBodies(deltaTime);
+        BoxRigidBodies(deltaTime);
+        CircleAgainstBoxRigidBodies(deltaTime);
     }
 
 
-    private void UpdateCircleRigidBodies(float deltaTime){
+    private void CircleRigidBodies(float deltaTime){
         Parallel.For(0, circleRigidBodies.Capacity, i =>{
             // skip if the slot is not active.
             
@@ -187,9 +188,9 @@ public class PhysicsSystem{
 
                 ref CircleRigidBody b = ref circleRigidBodies.GetData(j);
 
-                // if we currently intersect.
+                // if there is an intersection between them.
 
-                if(a.Shape.Intersects(b.Shape, out Vector2 normal, out float depth) == true){
+                if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth) == true){
 
                     // push apart by half from eachother.
 
@@ -201,13 +202,13 @@ public class PhysicsSystem{
         });
     }
 
-    private void UpdateBoxRigidBodies(float deltaTime){
+    private void BoxRigidBodies(float deltaTime){
         Parallel.For(0, boxRigidBodies.Capacity, i => {
-
             // skip if not active.
 
             if(boxRigidBodies.IsSlotActive(i) == false){
                 return;
+                // continue;
             }
             
             // get the current body.
@@ -224,13 +225,58 @@ public class PhysicsSystem{
 
                 ref BoxRigidBody b = ref boxRigidBodies.GetData(j);
 
-                // if there is a current intersection.
+                // if there is an intersection between them.
 
-                if(a.Shape.SATIntersect(b.Shape.Vertices)){
-                    Console.WriteLine("intersection!");
+                if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
+                    
+                    // push apart from eachother.
+                    
+                    a.Position -= normal * depth * 0.5f;
+                    b.Position += normal * depth * 0.5f;
                 }
             
             }
+        });
+    }
+
+    private void CircleAgainstBoxRigidBodies(float deltaTime){
+        Parallel.For(0,boxRigidBodies.Capacity, i => {
+            
+            // skip if not active.
+
+            if(boxRigidBodies.IsSlotActive(i) == false){
+                return;
+            }
+
+            // get the current body.
+
+            ref BoxRigidBody a = ref boxRigidBodies.GetData(i);
+
+            for(int j = 0; j < circleRigidBodies.Capacity; j++){
+                
+                // skip if not active.
+                
+                if(circleRigidBodies.IsSlotActive(j) == false){
+                    continue;
+                }
+
+                // get the other body.
+
+                ref CircleRigidBody b = ref circleRigidBodies.GetData(j);
+
+                // if there is an intersection between them.
+                
+                if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
+                    Console.WriteLine(1);
+
+                    // push apart from eachother.
+
+                    a.Position -= normal * depth * 0.5f;
+                    b.Position += normal * depth * 0.5f;
+                }
+            }
+
+
         });
     }
 }
