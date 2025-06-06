@@ -185,8 +185,11 @@ public class PhysicsSystem{
             ref BoxRigidBody body = ref boxRigidBodies.GetData(i);
             
             // apply force.
+            // force = mass * acceleration.
+            // acceleration = force / mass.
 
-            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Force;
+            body.PhysicsBody.Acceleration = body.PhysicsBody.Force / body.PhysicsBody.Mass; 
+            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Acceleration;
             body.PhysicsBody.Force = Vector2.Zero;
 
 

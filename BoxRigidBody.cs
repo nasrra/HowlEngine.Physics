@@ -76,7 +76,7 @@ public struct BoxRigidBody{
          
         PhysicsBody = new PhysicsBody(
             position, 
-            width * height, 
+            width * height * density, 
             density, 
             restitution
         );

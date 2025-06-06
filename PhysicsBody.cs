@@ -25,6 +25,13 @@ public struct PhysicsBody{
 
 
     /// <summary>
+    /// Gets and sets the acceleration of this physics body.
+    /// </summary>
+
+    public Vector2 Acceleration = Vector2.Zero;
+
+
+    /// <summary>
     /// Gets the mass of this physics body.
     /// </summary>
     
