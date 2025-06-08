@@ -10,18 +10,87 @@ public class PhysicsSystem{
     private StructPool<CirclePhysicsBody> circleRigidBodies;
     private StructPool<PolygonPhysicsBody> polygonKinematicBodies;
     private StructPool<CirclePhysicsBody> circleKinematicBodies;
-    private bool gravityEnabled = false;
+    
+    
+    /// <summary>
+    /// Collision manifold between circle rigid bodies.
+    /// </summary>
+    
+    private List<CollisionManifold> _crToCrContacts;
+
+
+    /// <summary>
+    /// Collision manifold between polygon rigid bodies.
+    /// </summary>
+
+    private List<CollisionManifold> _prToPrContacts;
+
+
+    /// <summary>
+    /// Collision manifold between polygon to circle rigidbodies.
+    /// </summary>
+
+    private List<CollisionManifold> _prToCrContacts;
+
+
+    /// <summary>
+    /// Collision manifold between circle kinematic to circle rigid bodies.
+    /// </summary>
+
+    private List<CollisionManifold> _ckToCrContacts;
+
+
+    /// <summary>
+    /// Collision manifold between polygon kinematic to polygon rigid bodies.
+    /// </summary>
+
+    private List<CollisionManifold> _pkToPrContacts;
+
+
+    /// <summary>
+    /// Collision manifold between polygon kinematic to circle rigid bodies.
+    /// </summary>
+
+    private List<CollisionManifold> _pkToCrContacts;
+
+
+    /// <summary>
+    /// Collision manifold between circle kinematic to polygon rigid bodies.
+    /// </summary>
+
+    private List<CollisionManifold> _ckToPrContacts;
+
+
+    /// <summary>
+    /// The gravity value to apply to rigidbodies.
+    /// </summary>
+
     private Vector2 gravity = new Vector2(0,0.0981f);
+
+
+    /// <summary>
+    /// Whether or not gavity is enabled.
+    /// </summary>
+
+    private bool gravityEnabled = false;
 
 
     public PhysicsSystem(
         int polygonRigidBodies, int polygonKinematicBodies, 
         int circleRigidBodies, int circleKinematicBodies, bool enableGravity){
+        
         this.polygonRigidBodies         = new StructPool<PolygonPhysicsBody>(polygonRigidBodies);
         this.polygonKinematicBodies     = new StructPool<PolygonPhysicsBody>(polygonKinematicBodies);
         this.circleRigidBodies          = new StructPool<CirclePhysicsBody>(circleRigidBodies);
         this.circleKinematicBodies      = new StructPool<CirclePhysicsBody>(circleKinematicBodies);
-        gravityEnabled = enableGravity;
+        _crToCrContacts                 = new List<CollisionManifold>();
+        _prToPrContacts                 = new List<CollisionManifold>();
+        _prToCrContacts                 = new List<CollisionManifold>();
+        _ckToCrContacts                 = new List<CollisionManifold>();
+        _pkToPrContacts                 = new List<CollisionManifold>();
+        _pkToCrContacts                 = new List<CollisionManifold>();
+        _ckToPrContacts                 = new List<CollisionManifold>();
+        gravityEnabled                  = enableGravity;
     }
 
 
@@ -341,21 +410,19 @@ public class PhysicsSystem{
         float stepModifier = 1f/(float)steps;
         
         for(int i = 0; i < steps; i++){
-
             MovementStep(stepModifier,i,steps);
-            
-            // handle rigid body collisions.
-
-            CircleRigidCollisions(deltaTime);
-            PolygonRigidCollisions(deltaTime);
-            CircleToPolygonRigidCollisions(deltaTime);
-            
-            // handle kinematic body collisions.
-
-            CircleRigidToPolygonKinematicCollisions(deltaTime);
-            PolygonRigidToPolygonKinematicCollisions(deltaTime);
+            CollisionsStep(deltaTime);
+            ResponseStep(deltaTime);
         }
     }
+
+
+    /// <summary>
+    /// Moves all physics bodies according to their linear velocity.
+    /// </summary>
+    /// <param name="stepModifier"></param>
+    /// <param name="currentStep"></param>
+    /// <param name="maxStep"></param>
 
     private void MovementStep(float stepModifier, int currentStep, int maxStep){
         
@@ -428,7 +495,152 @@ public class PhysicsSystem{
         });    
     }
 
-    private void CircleRigidCollisions(float deltaTime){
+
+    /// <summary>
+    /// Detects collisions between all physics body colliders.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void CollisionsStep(float deltaTime){
+            
+        // detect rigid body collisions.
+
+        CrToCrCollisions(deltaTime);
+        PrToPrCollisions(deltaTime);
+        PrToCrCollisions(deltaTime);
+        
+        // detect kinematic body collisions.
+
+        PkToCrCollisions(deltaTime);
+        PkToPrCollisions(deltaTime);
+    }
+
+
+    /// <summary>
+    /// Performs a collision response to all colliding physics bodies.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void ResponseStep(float deltaTime){
+        
+        // collision response for circle rigid bodies.
+
+        // Parallel.For(0, _crToCrContacts.Count, i=>{
+        for(int i = 0; i < _crToCrContacts.Count; i++){
+            CollisionManifold manifold = _crToCrContacts[i];
+            ResolveRigidToRigidCollision(
+                ref circleRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
+                ref circleRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
+                manifold.Normal,
+                manifold.Depth
+            );
+        }
+        // });
+        
+        // collision response for polygon rigid bodies.
+
+        // Parallel.For(0, _prToPrContacts.Count, i=>{
+        for(int i = 0; i < _prToPrContacts.Count; i++){
+            CollisionManifold manifold = _prToPrContacts[i];
+            ResolveRigidToRigidCollision(
+                ref polygonRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
+                ref polygonRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
+                manifold.Normal,
+                manifold.Depth
+            );
+        }
+        // });
+
+        // collision response for polygon to circle rigid bodies.
+
+        // Parallel.For(0, _prToCrContacts.Count, i=>{
+        for(int i = 0; i < _prToCrContacts.Count; i++){
+
+            CollisionManifold manifold = _prToCrContacts[i];
+            ResolveRigidToRigidCollision(
+                ref polygonRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
+                ref circleRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
+                manifold.Normal,
+                manifold.Depth
+            );
+        }
+        // });
+
+        // collision response for circle kinematic to rigid bodies.
+
+        // Parallel.For(0, _ckToCrContacts.Count, i=>{
+        for(int i = 0; i < _ckToCrContacts.Count; i++){
+
+            CollisionManifold manifold = _ckToCrContacts[i];
+            ResolveKinematicToRigidCollision(
+                ref circleKinematicBodies.GetData(manifold.BodyIndexA).PhysicsBody,
+                ref circleRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
+                manifold.Normal,
+                manifold.Depth
+            );
+        }
+        // });
+
+        // collision response for polygon kinematic to rigid bodies.
+
+        // Parallel.For(0, _pkToPrContacts.Count, i=>{
+        for(int i = 0; i < _pkToPrContacts.Count; i++){
+            CollisionManifold manifold = _pkToPrContacts[i];
+            ResolveKinematicToRigidCollision(
+                ref polygonKinematicBodies.GetData(manifold.BodyIndexA).PhysicsBody,
+                ref polygonRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
+                manifold.Normal,
+                manifold.Depth
+            );
+        }
+        // });
+
+        // collision response for polygon kinematic to circle rigid bodies.
+
+        // Parallel.For(0, _pkToCrContacts.Count, i=>{
+        for(int i = 0; i < _pkToCrContacts.Count; i++){
+
+            CollisionManifold manifold = _pkToCrContacts[i];
+            ResolveKinematicToRigidCollision(
+                ref polygonKinematicBodies.GetData(manifold.BodyIndexA).PhysicsBody,
+                ref circleRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
+                manifold.Normal,
+                manifold.Depth
+            );
+        }
+        // });
+
+        // collision response for circle kinematic to polygon rigid bodies.
+
+        // Parallel.For(0, _ckToPrContacts.Count, i=>{
+        for(int i = 0; i < _ckToPrContacts.Count; i++){
+            CollisionManifold manifold = _ckToPrContacts[i];
+            ResolveKinematicToRigidCollision(
+                ref circleKinematicBodies.GetData(manifold.BodyIndexA).PhysicsBody,
+                ref circleRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
+                manifold.Normal,
+                manifold.Depth
+            );
+        }
+        // });
+
+        // clear all contacts for the next frame.
+        
+        _crToCrContacts.Clear();
+        _prToPrContacts.Clear();
+        _prToCrContacts.Clear();
+        _ckToCrContacts.Clear();
+        _pkToPrContacts.Clear();
+        _pkToCrContacts.Clear();
+        _ckToPrContacts.Clear();
+    }
+
+    /// <summary>
+    /// Detect collidions between circle rigidbodies.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void CrToCrCollisions(float deltaTime){
         Parallel.For(0, circleRigidBodies.Capacity, i =>{
             // skip if the slot is not active.
             
@@ -459,13 +671,30 @@ public class PhysicsSystem{
                     a.Position += normal * depth * 0.5f;
                     b.Position -= normal * depth * 0.5f;
 
-                    ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
+                    // add to collision manifold for cummulative resolutions.
+
+                    _crToCrContacts.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        i,
+                        j
+                    ));
+
+                    // ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
                 }
             }
         });
     }
 
-    private void PolygonRigidCollisions(float deltaTime){
+
+    /// <summary>
+    /// Detect collisions between polygon rigid bodies.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void PrToPrCollisions(float deltaTime){
         Parallel.For(0, polygonRigidBodies.Capacity, i => {
             // skip if not active.
 
@@ -497,14 +726,31 @@ public class PhysicsSystem{
                     a.Position -= normal * depth * 0.5f;
                     b.Position += normal * depth * 0.5f;
 
-                    ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
+                    // add to collision manifold for cummulative resolutions.
+
+                    _prToPrContacts.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        i,
+                        j
+                    ));
+
+                    // ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
                 }
             
             }
         });
     }
 
-    private void CircleToPolygonRigidCollisions(float deltaTime){
+
+    /// <summary>
+    /// Detect collisions between polygon and circle rigid bodies.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void PrToCrCollisions(float deltaTime){
         Parallel.For(0,polygonRigidBodies.Capacity, i => {
             
             // skip if not active.
@@ -537,8 +783,19 @@ public class PhysicsSystem{
 
                     a.Position -= normal * depth * 0.5f;
                     b.Position += normal * depth * 0.5f;
-                
-                    ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);                
+
+                    // add to collision manifold for cummulative resolutions.
+
+                    _prToCrContacts.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        i,
+                        j
+                    ));
+
+                    // ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);                
                 }
             }
 
@@ -548,34 +805,34 @@ public class PhysicsSystem{
 
 
     /// <summary>
-    /// Handles collisions between circle rigid bodies and polygon kinematic bodies.
+    /// Detect collisions between polygon kinematic bodies and circle rigid bodies.
     /// </summary>
     /// <param name="deltaTime"></param>
 
-    private void CircleRigidToPolygonKinematicCollisions(float deltaTime){
-        Parallel.For(0,circleRigidBodies.Capacity, i => {
+    private void PkToCrCollisions(float deltaTime){
+        Parallel.For(0,polygonKinematicBodies.Capacity, i => {
             
             // skip if not active.
             
-            if(circleRigidBodies.IsSlotActive(i) == false){
+            if(polygonKinematicBodies.IsSlotActive(i) == false){
                 return;
             }
 
             // get the current body.
 
-            ref CirclePhysicsBody rigid = ref circleRigidBodies.GetData(i);
+            ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(i);
 
-            for(int j = 0; j < polygonKinematicBodies.Capacity; j++){
+            for(int j = 0; j < circleRigidBodies.Capacity; j++){
 
                 // skip if not active.
 
-                if(polygonKinematicBodies.IsSlotActive(j) == false){
+                if(circleRigidBodies.IsSlotActive(j) == false){
                     continue;
                 }
 
                 // get the other body.
 
-                ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(j);
+                ref CirclePhysicsBody rigid = ref circleRigidBodies.GetData(j);
 
                 // if there is an intersection between them.
 
@@ -585,9 +842,18 @@ public class PhysicsSystem{
 
                     rigid.Position += normal * depth;
 
-                    // collision reponse.
+                    // add to collision manifold for cummulative resolutions.
 
-                    ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);                
+                    _pkToCrContacts.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        i,
+                        j
+                    ));
+
+                    // ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);                
                 }
             }
 
@@ -596,32 +862,32 @@ public class PhysicsSystem{
 
 
     /// <summary>
-    /// Handles collisions between polygon rigid bodies and polygon kinematic bodies.
+    /// Detect collisions between polygon kinematic and polygon rigid bodies.
     /// </summary>
     /// <param name="deltaTime"></param>
 
-    private void PolygonRigidToPolygonKinematicCollisions(float deltaTime){
-        Parallel.For(0, polygonRigidBodies.Capacity, i => {
+    private void PkToPrCollisions(float deltaTime){
+        Parallel.For(0, polygonKinematicBodies.Capacity, i => {
             // skip if not active.
 
-            if(polygonRigidBodies.IsSlotActive(i) == false){
+            if(polygonKinematicBodies.IsSlotActive(i) == false){
                 return;
                 // continue;
             }
             
             // get the current body.
 
-            ref PolygonPhysicsBody rigid = ref polygonRigidBodies.GetData(i);
+            ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(i);
 
-            for(int j = 0; j < polygonKinematicBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
+            for(int j = 0; j < polygonRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
     
-                if(polygonKinematicBodies.IsSlotActive(j) == false){
+                if(polygonRigidBodies.IsSlotActive(j) == false){
                     continue;
                 }
 
                 // get the other body.
 
-                ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(j);
+                ref PolygonPhysicsBody rigid = ref polygonRigidBodies.GetData(j);
 
                 // if there is an intersection between them.
 
@@ -631,9 +897,18 @@ public class PhysicsSystem{
                     
                     rigid.Position -= normal * depth;
 
-                    // collision reponse.
+                    // add to collision manifold for cummulative resolutions.
 
-                    ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);
+                    _pkToPrContacts.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        i,
+                        j
+                    ));
+
+                    // ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);
                 }
             
             }
@@ -663,7 +938,7 @@ public class PhysicsSystem{
     }
 
 
-    private void ResolveRigidToKinematicCollision(ref PhysicsBody rigid, ref PhysicsBody kinematic, Vector2 normal, float depth){
+    private void ResolveKinematicToRigidCollision(ref PhysicsBody kinematic, ref PhysicsBody rigid, Vector2 normal, float depth){
         
         
         Vector2 relativeVelocity  = kinematic.LinearVelocity - rigid.LinearVelocity;
