@@ -103,17 +103,13 @@ public class PhysicsSystem{
     public Token AllocateBoxRigidBody(Vector2 position, float width, float height, float density, float restitution){
         float halfWidth     = width * 0.5f;
         float halfHeight    = height * 0.5f;
-        float left          = position.X - halfWidth;
-        float right         = position.X + halfWidth;
-        float top           = position.Y - halfHeight;
-        float bottom        = position.Y + halfHeight;
         return AllocatePolygonRigidBody(
             new PolygonPhysicsBody(
                 [
-                    new Vector2(left, top),
-                    new Vector2(right, top),
-                    new Vector2(right, bottom),
-                    new Vector2(left, bottom)
+                    new Vector2(-halfWidth, -halfHeight),
+                    new Vector2(halfWidth, -halfHeight),
+                    new Vector2(halfWidth, halfHeight),
+                    new Vector2(-halfWidth, halfHeight)
                 ], 
                 position,
                 width * height,
@@ -132,17 +128,13 @@ public class PhysicsSystem{
     public Token AllocateBoxKinematicBody(Vector2 position, float width, float height, float density, float restitution){
         float halfWidth     = width * 0.5f;
         float halfHeight    = height * 0.5f;
-        float left          = position.X - halfWidth;
-        float right         = position.X + halfWidth;
-        float top           = position.Y - halfHeight;
-        float bottom        = position.Y + halfHeight;
         return AllocatePolygonKinematicBody(
             new PolygonPhysicsBody(
                 [
-                    new Vector2(left, top),
-                    new Vector2(right, top),
-                    new Vector2(right, bottom),
-                    new Vector2(left, bottom)
+                    new Vector2(-halfWidth, -halfHeight),
+                    new Vector2(halfWidth, -halfHeight),
+                    new Vector2(halfWidth, halfHeight),
+                    new Vector2(-halfWidth, halfHeight)
                 ], 
                 position,
                 width * height,
