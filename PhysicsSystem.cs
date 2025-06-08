@@ -10,15 +10,18 @@ public class PhysicsSystem{
     private StructPool<CirclePhysicsBody> circleRigidBodies;
     private StructPool<PolygonPhysicsBody> polygonKinematicBodies;
     private StructPool<CirclePhysicsBody> circleKinematicBodies;
+    private bool gravityEnabled = false;
+    private Vector2 gravity = new Vector2(0,0.0981f);
 
 
     public PhysicsSystem(
         int polygonRigidBodies, int polygonKinematicBodies, 
-        int circleRigidBodies, int circleKinematicBodies){
+        int circleRigidBodies, int circleKinematicBodies, bool enableGravity){
         this.polygonRigidBodies         = new StructPool<PolygonPhysicsBody>(polygonRigidBodies);
         this.polygonKinematicBodies     = new StructPool<PolygonPhysicsBody>(polygonKinematicBodies);
         this.circleRigidBodies          = new StructPool<CirclePhysicsBody>(circleRigidBodies);
         this.circleKinematicBodies      = new StructPool<CirclePhysicsBody>(circleKinematicBodies);
+        gravityEnabled = enableGravity;
     }
 
 
@@ -333,25 +336,28 @@ public class PhysicsSystem{
     }
 
 
-    public void FixedUpdate(float deltaTime){
+    public void FixedUpdate(float deltaTime, int subSteps){
+        int steps = Math.Clamp(subSteps, 1, 64);
+        float stepModifier = 1f/(float)steps;
         
-        MovementStep(deltaTime);
-        
-        // handle rigid body collisions.
+        for(int i = 0; i < steps; i++){
 
-        CircleRigidCollisions(deltaTime);
-        PolygonRigidCollisions(deltaTime);
-        CircleToPolygonRigidCollisions(deltaTime);
-        
-        // handle kinematic body collisions.
+            MovementStep(stepModifier,i,steps);
+            
+            // handle rigid body collisions.
 
-        CircleRigidToPolygonKinematicCollisions(deltaTime);
-        PolygonRigidToPolygonKinematicCollisions(deltaTime);
+            CircleRigidCollisions(deltaTime);
+            PolygonRigidCollisions(deltaTime);
+            CircleToPolygonRigidCollisions(deltaTime);
+            
+            // handle kinematic body collisions.
+
+            CircleRigidToPolygonKinematicCollisions(deltaTime);
+            PolygonRigidToPolygonKinematicCollisions(deltaTime);
+        }
     }
 
-    private void MovementStep(float deltaTime){
-        
-        // move box rigidbodies.
+    private void MovementStep(float stepModifier, int currentStep, int maxStep){
         
         Parallel.For(0, polygonRigidBodies.Capacity, i=>{
             
@@ -369,14 +375,22 @@ public class PhysicsSystem{
             // force = mass * acceleration.
             // acceleration = force / mass.
 
-            body.PhysicsBody.Acceleration = body.PhysicsBody.Force / body.PhysicsBody.Mass; 
-            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Acceleration;
-            body.PhysicsBody.Force = Vector2.Zero;
+            body.PhysicsBody.Acceleration = (body.PhysicsBody.Force / body.PhysicsBody.Mass); 
+            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Acceleration * stepModifier;
+            
+            if(currentStep == maxStep){
+                body.PhysicsBody.Force = Vector2.Zero;
+            }
 
+            // apply grvity if enabled.
+
+            if(gravityEnabled == true){
+                body.PhysicsBody.LinearVelocity += gravity * stepModifier;
+            }
 
             // movement
 
-            body.Position += body.PhysicsBody.LinearVelocity;
+            body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
         
         });
 
@@ -397,16 +411,21 @@ public class PhysicsSystem{
 
             // apply force.
 
-            body.PhysicsBody.Acceleration = body.PhysicsBody.Force / body.PhysicsBody.Mass; 
-            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Acceleration;
+            body.PhysicsBody.Acceleration = body.PhysicsBody.Force / body.PhysicsBody.Mass * stepModifier; 
+            body.PhysicsBody.LinearVelocity += body.PhysicsBody.Acceleration * stepModifier;
             body.PhysicsBody.Force = Vector2.Zero;
 
+            // apply gravity if enabled.
+
+            if(gravityEnabled == true){
+                body.PhysicsBody.LinearVelocity += gravity * stepModifier;
+            }
 
             // movement
 
-            body.Position += body.PhysicsBody.LinearVelocity;
+            body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
         
-        });
+        });    
     }
 
     private void CircleRigidCollisions(float deltaTime){
@@ -437,9 +456,10 @@ public class PhysicsSystem{
 
                     // push apart by half from eachother.
 
-                    a.Position -= normal * depth * 0.5f;
-                    b.Position += normal * depth * 0.5f;
+                    a.Position += normal * depth * 0.5f;
+                    b.Position -= normal * depth * 0.5f;
 
+                    ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
                 }
             }
         });
