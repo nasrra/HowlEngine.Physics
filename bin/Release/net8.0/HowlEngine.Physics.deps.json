@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "HowlEngine.Physics/1.0.0": {
+        "dependencies": {
+          "HowlEngine.Collections": "1.0.0"
+        },
+        "runtime": {
+          "HowlEngine.Physics.dll": {}
+        }
+      },
+      "HowlEngine.Collections/1.0.0": {
+        "runtime": {
+          "HowlEngine.Collections.dll": {
+            "assemblyVersion": "1.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "HowlEngine.Physics/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "HowlEngine.Collections/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

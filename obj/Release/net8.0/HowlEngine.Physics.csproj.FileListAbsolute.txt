@@ -1,0 +1,16 @@
+C:\MonogameProjects\HowlEngine.Physics\bin\Release\net8.0\HowlEngine.Physics.deps.json
+C:\MonogameProjects\HowlEngine.Physics\bin\Release\net8.0\HowlEngine.Physics.dll
+C:\MonogameProjects\HowlEngine.Physics\bin\Release\net8.0\HowlEngine.Physics.pdb
+C:\MonogameProjects\HowlEngine.Physics\bin\Release\net8.0\HowlEngine.Collections.dll
+C:\MonogameProjects\HowlEngine.Physics\bin\Release\net8.0\HowlEngine.Collections.pdb
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.csproj.AssemblyReference.cache
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.GeneratedMSBuildEditorConfig.editorconfig
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.AssemblyInfoInputs.cache
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.AssemblyInfo.cs
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.csproj.CoreCompileInputs.cache
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.sourcelink.json
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngi.B5BFC5DB.Up2Date
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.dll
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\refint\HowlEngine.Physics.dll
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\HowlEngine.Physics.pdb
+C:\MonogameProjects\HowlEngine.Physics\obj\Release\net8.0\ref\HowlEngine.Physics.dll

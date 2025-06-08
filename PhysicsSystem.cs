@@ -1,6 +1,7 @@
 using System.Numerics;
 using HowlEngine.Collections.Shapes;
 using HowlEngine.Collections;
+using System.Diagnostics;
 
 namespace HowlEngine.Physics;
 
@@ -60,12 +61,15 @@ public class PhysicsSystem{
 
     private List<CollisionManifold> _ckToPrContacts;
 
+    public List<Vector2> ContactPoints;
 
     /// <summary>
     /// The gravity value to apply to rigidbodies.
     /// </summary>
 
     private Vector2 gravity = new Vector2(0,0.0981f);
+
+    public Stopwatch StepCallTimer = new Stopwatch();
 
 
     /// <summary>
@@ -90,6 +94,7 @@ public class PhysicsSystem{
         _pkToPrContacts                 = new List<CollisionManifold>();
         _pkToCrContacts                 = new List<CollisionManifold>();
         _ckToPrContacts                 = new List<CollisionManifold>();
+        ContactPoints                   = new List<Vector2>();
         gravityEnabled                  = enableGravity;
     }
 
@@ -406,14 +411,31 @@ public class PhysicsSystem{
 
 
     public void FixedUpdate(float deltaTime, int subSteps){
+        StepCallTimer.Reset();
+        StepCallTimer.Start();
         int steps = Math.Clamp(subSteps, 1, 64);
         float stepModifier = 1f/(float)steps;
         
+        ContactPoints.Clear();
+        
+
         for(int i = 0; i < steps; i++){
+            // clear all contacts for the step.        
+            
+            _crToCrContacts.Clear();
+            _prToPrContacts.Clear();
+            _prToCrContacts.Clear();
+            _ckToCrContacts.Clear();
+            _pkToPrContacts.Clear();
+            _pkToCrContacts.Clear();
+            _ckToPrContacts.Clear();
+
             MovementStep(stepModifier,i,steps);
             CollisionsStep(deltaTime);
             ResponseStep(deltaTime);
+            
         }
+        StepCallTimer.Stop();
     }
 
 
@@ -427,11 +449,13 @@ public class PhysicsSystem{
     private void MovementStep(float stepModifier, int currentStep, int maxStep){
         
         Parallel.For(0, polygonRigidBodies.Capacity, i=>{
+        // for(int i = 0; i < polygonRigidBodies.Capacity; i++){
             
             // skip if not active.
             
             if(polygonRigidBodies.IsSlotActive(i) == false){
                 return;
+                // continue;
             }
 
             // get the body.
@@ -458,18 +482,20 @@ public class PhysicsSystem{
             // movement
 
             body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
-        
+        // }    
         });
 
 
         // move circle rigidbodies.
         
         Parallel.For(0, circleRigidBodies.Capacity, i=>{
-            
+        // for(int i = 0; i < circleRigidBodies.Capacity; i++){
+
             // skip if not active.
             
             if(circleRigidBodies.IsSlotActive(i) == false){
                 return;
+                // continue;
             }
 
             // get the body.
@@ -491,7 +517,7 @@ public class PhysicsSystem{
             // movement
 
             body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
-        
+        // }
         });    
     }
 
@@ -623,16 +649,6 @@ public class PhysicsSystem{
             );
         }
         // });
-
-        // clear all contacts for the next frame.
-        
-        _crToCrContacts.Clear();
-        _prToPrContacts.Clear();
-        _prToCrContacts.Clear();
-        _ckToCrContacts.Clear();
-        _pkToPrContacts.Clear();
-        _pkToCrContacts.Clear();
-        _ckToPrContacts.Clear();
     }
 
     /// <summary>
@@ -664,7 +680,7 @@ public class PhysicsSystem{
 
                 // if there is an intersection between them.
 
-                if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth) == true){
+                if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out Vector2 contactPoint, out float depth) == true){
 
                     // push apart by half from eachother.
 
@@ -681,6 +697,8 @@ public class PhysicsSystem{
                         i,
                         j
                     ));
+
+                    ContactPoints.Add(contactPoint);
 
                     // ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
                 }
