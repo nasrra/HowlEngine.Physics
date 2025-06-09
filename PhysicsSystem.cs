@@ -7,10 +7,10 @@ namespace HowlEngine.Physics;
 
 public class PhysicsSystem{
 
-    private StructPool<PolygonPhysicsBody> polygonRigidBodies;
-    private StructPool<CirclePhysicsBody> circleRigidBodies;
-    private StructPool<PolygonPhysicsBody> polygonKinematicBodies;
-    private StructPool<CirclePhysicsBody> circleKinematicBodies;
+    private StructPool<PolygonPhysicsBody>  polygonRigidBodies;
+    private StructPool<CirclePhysicsBody>   circleRigidBodies;
+    private StructPool<PolygonPhysicsBody>  polygonKinematicBodies;
+    private StructPool<CirclePhysicsBody>   circleKinematicBodies;
     
     
     /// <summary>
@@ -312,18 +312,18 @@ public class PhysicsSystem{
     /// </summary>
     /// <returns></returns>
 
-    public List<Vector2[]> CopyPolygonRigidBodyColliders(){
+    public List<Polygon> CopyPolygonRigidBodyColliders(){
 
         // create the copy list.
 
-        List<Vector2[]> colliders = new List<Vector2[]>();
+        List<Polygon> colliders = new List<Polygon>();
         
         // copy all colliders.
         
         for(int i = 0; i < polygonRigidBodies.Capacity; i++){
             if(polygonRigidBodies.IsSlotActive(i) == true){
                 ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);
-                colliders.Add(body.Shape.Vertices);
+                colliders.Add(body.Shape);
             }
         }
 
@@ -336,18 +336,18 @@ public class PhysicsSystem{
     /// </summary>
     /// <returns></returns>
 
-    public List<Vector2[]> CopyPolygonKinematicColliders(){
+    public List<Polygon> CopyPolygonKinematicColliders(){
 
         // create the copy list.
 
-        List<Vector2[]> colliders = new List<Vector2[]>();
+        List<Polygon> colliders = new List<Polygon>();
         
         // copy all colliders.
         
         for(int i = 0; i < polygonKinematicBodies.Capacity; i++){
             if(polygonKinematicBodies.IsSlotActive(i) == true){
                 ref PolygonPhysicsBody body = ref polygonKinematicBodies.GetData(i);
-                colliders.Add(body.Shape.Vertices);
+                colliders.Add(body.Shape);
             }
         }
 
@@ -967,4 +967,5 @@ public class PhysicsSystem{
 
         rigid.LinearVelocity -= j/rigid.Mass*normal;
     }
+
 }
