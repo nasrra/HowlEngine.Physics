@@ -7,6 +7,7 @@ namespace HowlEngine.Physics;
 
 public class PhysicsSystem{
 
+    public SpatialHash<int> SpatialHash;
     private StructPool<PolygonPhysicsBody>  polygonRigidBodies;
     private StructPool<CirclePhysicsBody>   circleRigidBodies;
     private StructPool<PolygonPhysicsBody>  polygonKinematicBodies;
@@ -95,6 +96,7 @@ public class PhysicsSystem{
         _pkToCrContacts                 = new List<CollisionManifold>();
         _ckToPrContacts                 = new List<CollisionManifold>();
         ContactPoints                   = new List<Vector2>();
+        SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(16,16),45,30);
         gravityEnabled                  = enableGravity;
     }
 
@@ -103,7 +105,7 @@ public class PhysicsSystem{
     public Token AllocateBoxRigidBody(Vector2 position, float width, float height, float density, float restitution){
         float halfWidth     = width * 0.5f;
         float halfHeight    = height * 0.5f;
-        return AllocatePolygonRigidBody(
+        Token token =  AllocatePolygonRigidBody(
             new PolygonPhysicsBody(
                 [
                     new Vector2(-halfWidth, -halfHeight),
@@ -115,8 +117,13 @@ public class PhysicsSystem{
                 width * height,
                 density,
                 restitution
+
             )
-        );        
+        );  
+        ref PolygonPhysicsBody body = ref polygonRigidBodies.TryGetData(ref token).Data;
+        SpatialHash.Insert(token.Id, body.Shape.Min, body.Shape.Max, out List<int> indices);
+        body.SpatialHashIndices = indices;
+        return token;
     }
 
     /// <summary>
@@ -128,7 +135,7 @@ public class PhysicsSystem{
     public Token AllocateBoxKinematicBody(Vector2 position, float width, float height, float density, float restitution){
         float halfWidth     = width * 0.5f;
         float halfHeight    = height * 0.5f;
-        return AllocatePolygonKinematicBody(
+        Token token =  AllocatePolygonKinematicBody(
             new PolygonPhysicsBody(
                 [
                     new Vector2(-halfWidth, -halfHeight),
@@ -141,7 +148,11 @@ public class PhysicsSystem{
                 density,
                 restitution
             )
-        );        
+        );
+        ref PolygonPhysicsBody body = ref polygonKinematicBodies.TryGetData(ref token).Data;
+        SpatialHash.Insert(token.Id, body.Shape.Min, body.Shape.Max, out List<int> indices);
+        body.SpatialHashIndices = indices;
+        return token;
     }
 
 
@@ -232,13 +243,17 @@ public class PhysicsSystem{
             return token;
         }
 
-        circleRigidBodies.TryGetData(ref token).Data = new CirclePhysicsBody(
+        ref CirclePhysicsBody body = ref circleRigidBodies.TryGetData(ref token).Data;
+
+        body = new CirclePhysicsBody(
             position,
             radius,
             density,
             restitution
         );
-        
+        SpatialHash.Insert(token.Id, body.Shape.Min, body.Shape.Max, out List<int> indices);
+        body.SpatialHashIndices = indices;
+        Console.WriteLine(token.Id);
         return token;
     }
 
@@ -425,7 +440,7 @@ public class PhysicsSystem{
             MovementStep(stepModifier,i,steps);
             CollisionsStep(deltaTime);
             ResponseStep(deltaTime);
-            
+            SpatialHashStep(deltaTime);
         }
         StepCallTimer.Stop();
     }
@@ -477,7 +492,6 @@ public class PhysicsSystem{
         // }    
         });
 
-
         // move circle rigidbodies.
         
         Parallel.For(0, circleRigidBodies.Capacity, i=>{
@@ -510,7 +524,7 @@ public class PhysicsSystem{
 
             body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
         // }
-        });    
+        });
     }
 
 
@@ -643,6 +657,45 @@ public class PhysicsSystem{
         // });
     }
 
+
+    private void SpatialHashStep(float deltaTime){
+        for(int i = 0; i < circleRigidBodies.Capacity; i++){
+            
+            // skip if not active.
+            
+            if(circleRigidBodies.IsSlotActive(i) == false){
+                continue;
+            }
+
+            // get body.
+            
+            ref CirclePhysicsBody body = ref circleRigidBodies.GetData(i);  
+
+            // update spatial hash information.
+
+            SpatialHash.Update(i, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max, out List<int> indices);
+            body.SpatialHashIndices = indices;
+        }
+
+        for(int i = 0; i < polygonRigidBodies.Capacity; i++){
+            
+            // skip if not active.
+            
+            if(polygonRigidBodies.IsSlotActive(i) == false){
+                continue;
+            }
+
+            // get body.
+
+            ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);  
+
+            // update spatial hash information.
+
+            SpatialHash.Update(i, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max, out List<int> indices);
+            body.SpatialHashIndices = indices;
+        }
+    }
+
     /// <summary>
     /// Detect collidions between circle rigidbodies.
     /// </summary>
@@ -660,15 +713,17 @@ public class PhysicsSystem{
 
             ref CirclePhysicsBody a = ref circleRigidBodies.GetData(i);
             
-            for(int j = i + 1; j < circleRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
-                
-                if(circleRigidBodies.IsSlotActive(j) == false){
+            SpatialHash.FindNear(a.Position, 1, out HashSet<int> n);
+
+            foreach (int bIndex in n){
+                if(bIndex == i){
                     continue;
                 }
 
+                // Console.WriteLine(bIndex);
                 // get the other circle.
 
-                ref CirclePhysicsBody b = ref circleRigidBodies.GetData(j);
+                ref CirclePhysicsBody b = ref circleRigidBodies.GetData(bIndex);
 
                 // if there is an intersection between them.
 
@@ -687,12 +742,8 @@ public class PhysicsSystem{
                         Vector2.Zero,
                         depth,
                         i,
-                        j
+                        bIndex
                     ));
-
-                    ContactPoints.Add(contactPoint);
-
-                    // ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
                 }
             }
         });
@@ -717,15 +768,19 @@ public class PhysicsSystem{
 
             ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
 
-            for(int j = i + 1; j < polygonRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
-    
-                if(polygonRigidBodies.IsSlotActive(j) == false){
+            SpatialHash.FindNear(a.Shape.Min, a.Shape.Max, 1, out HashSet<int> n);
+
+            foreach (int bIndex in n){
+                // Console.WriteLine(bIndex);
+                // get the other circle.
+
+                if(polygonRigidBodies.IsSlotActive(bIndex) == false || bIndex == i){
                     continue;
                 }
 
                 // get the other body.
 
-                ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(j);
+                ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(bIndex);
 
                 // if there is an intersection between them.
 
@@ -744,7 +799,7 @@ public class PhysicsSystem{
                         Vector2.Zero,
                         depth,
                         i,
-                        j
+                        bIndex
                     ));
 
                     // ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);
@@ -772,24 +827,24 @@ public class PhysicsSystem{
             // get the current body.
 
             ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
+            
+            SpatialHash.FindNear(a.Shape.Min, a.Shape.Max, 1, out HashSet<int> n);
 
-            for(int j = 0; j < circleRigidBodies.Capacity; j++){
-                
-                // skip if not active.
-                
-                if(circleRigidBodies.IsSlotActive(j) == false){
+            foreach (int bIndex in n){
+                // Console.WriteLine(bIndex);
+                // get the other circle.
+
+                if(circleRigidBodies.IsSlotActive(bIndex) == false){
                     continue;
                 }
 
-                // get the other body.
-
-                ref CirclePhysicsBody b = ref circleRigidBodies.GetData(j);
+                ref CirclePhysicsBody b = ref circleRigidBodies.GetData(bIndex);
 
                 // if there is an intersection between them.
-                
+
                 if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
 
-                    // push apart from eachother.
+                    // push apart by half from eachother.
 
                     a.Position -= normal * depth * 0.5f;
                     b.Position += normal * depth * 0.5f;
@@ -802,14 +857,10 @@ public class PhysicsSystem{
                         Vector2.Zero,
                         depth,
                         i,
-                        j
+                        bIndex
                     ));
-
-                    // ResolveRigidToRigidCollision(ref a.PhysicsBody, ref b.PhysicsBody, normal, depth);                
                 }
             }
-
-
         });
     }
 
@@ -832,25 +883,22 @@ public class PhysicsSystem{
 
             ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(i);
 
-            for(int j = 0; j < circleRigidBodies.Capacity; j++){
+            SpatialHash.FindNear(kinematic.Shape.Min, kinematic.Shape.Max, 1, out HashSet<int> n);
 
-                // skip if not active.
+            foreach (int bIndex in n){
+                // Console.WriteLine(bIndex);
+                // get the other circle.
 
-                if(circleRigidBodies.IsSlotActive(j) == false){
-                    continue;
-                }
-
-                // get the other body.
-
-                ref CirclePhysicsBody rigid = ref circleRigidBodies.GetData(j);
+                ref CirclePhysicsBody rigid = ref circleRigidBodies.GetData(bIndex);
 
                 // if there is an intersection between them.
 
                 if(Collections.Shapes.Util.Intersect(ref kinematic.Shape, ref rigid.Shape, out Vector2 normal, out float depth)){
 
-                    // push the rigid away from the kinematic.
+                    // push apart by half from eachother.
 
-                    rigid.Position += normal * depth;
+                    // kinematic.Position -= normal * depth * 0.5f;
+                    rigid.Position += normal * depth * 0.5f;
 
                     // add to collision manifold for cummulative resolutions.
 
@@ -860,15 +908,13 @@ public class PhysicsSystem{
                         Vector2.Zero,
                         depth,
                         i,
-                        j
+                        bIndex
                     ));
-
-                    // ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);                
                 }
             }
-
         });
     }
+
 
 
     /// <summary>
@@ -889,15 +935,16 @@ public class PhysicsSystem{
 
             ref PolygonPhysicsBody kinematic = ref polygonKinematicBodies.GetData(i);
 
-            for(int j = 0; j < polygonRigidBodies.Capacity; j++){ // <-- ensure the comparison between others only occurs once.
-    
-                if(polygonRigidBodies.IsSlotActive(j) == false){
+            SpatialHash.FindNear(kinematic.Shape.Min, kinematic.Shape.Max, 1, out HashSet<int> n);
+
+            foreach (int bIndex in n){
+                // Console.WriteLine(bIndex);
+                // get the other circle.
+                if(polygonRigidBodies.IsSlotActive(bIndex) == false){
                     continue;
                 }
 
-                // get the other body.
-
-                ref PolygonPhysicsBody rigid = ref polygonRigidBodies.GetData(j);
+                ref PolygonPhysicsBody rigid = ref polygonRigidBodies.GetData(bIndex);
 
                 // if there is an intersection between them.
 
@@ -915,10 +962,8 @@ public class PhysicsSystem{
                         Vector2.Zero,
                         depth,
                         i,
-                        j
+                        bIndex
                     ));
-
-                    // ResolveRigidToKinematicCollision(ref rigid.PhysicsBody, ref kinematic.PhysicsBody, normal, depth);
                 }
             
             }

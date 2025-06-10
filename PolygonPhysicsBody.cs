@@ -1,3 +1,4 @@
+using HowlEngine.Collections;
 using HowlEngine.Collections.Shapes;
 using System.Numerics;
 
@@ -17,6 +18,8 @@ public struct PolygonPhysicsBody{
 
     public PhysicsBody PhysicsBody;
 
+    public List<int> SpatialHashIndices;
+
     public Vector2 Position {
         get => PhysicsBody.Position;
         set{
@@ -27,7 +30,9 @@ public struct PolygonPhysicsBody{
 
     public float Rotation {
         get => Shape.Rotation;
-        set => Shape.Rotation = value; 
+        set{
+            Shape.Rotation = value;
+        } 
     }
 
     /// <summary>
@@ -42,5 +47,6 @@ public struct PolygonPhysicsBody{
     public PolygonPhysicsBody(Vector2[] vertices, Vector2 position, float area, float density, float restitution){
         Shape = new Polygon(vertices, position, 0);
         PhysicsBody = new PhysicsBody(position, area * density, density, restitution);
+        SpatialHashIndices = new List<int>();
     }
 }

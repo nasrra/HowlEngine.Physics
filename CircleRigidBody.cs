@@ -1,4 +1,5 @@
 using System.Numerics;
+using HowlEngine.Collections;
 using HowlEngine.Collections.Shapes;
 using HowlEngine.Physics;
 
@@ -18,11 +19,13 @@ public struct CirclePhysicsBody{
 
     public PhysicsBody PhysicsBody;
 
+    public List<int> SpatialHashIndices;
+
     public Vector2 Position {
-        get => Shape.Position;
-        set {
-            Shape.Position = value;
+        get => PhysicsBody.Position;
+        set{
             PhysicsBody.Position = value;
+            Shape.Position = value;
         }
     }
 
@@ -36,7 +39,8 @@ public struct CirclePhysicsBody{
     /// <param name="restitution">The restitution (between 0 and 1) of this physics body.</param>
 
     public CirclePhysicsBody(Vector2 position, float radius, float density, float restitution){
-        Shape = new Circle(position.X, position.Y, radius);
+        Shape = new Circle(position, radius);
         PhysicsBody = new PhysicsBody(position, Shape.Area * density, density, restitution);
+        SpatialHashIndices = new List<int>();
     }
 }
