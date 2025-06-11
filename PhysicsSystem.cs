@@ -12,6 +12,7 @@ public class PhysicsSystem{
     private StructPool<CirclePhysicsBody>   circleRigidBodies;
     private StructPool<PolygonPhysicsBody>  polygonKinematicBodies;
     private StructPool<CirclePhysicsBody>   circleKinematicBodies;
+    private HashSet<int>[] _neighbours;
     
     
     /// <summary>
@@ -125,6 +126,7 @@ public class PhysicsSystem{
     public Stopwatch NarrowTimer        = new Stopwatch();
     public Stopwatch ResponseTimer      = new Stopwatch();
     public Stopwatch SpatialUpdateTimer = new Stopwatch();
+    public Stopwatch FindNeighboursTimer = new Stopwatch();
 
     private int _prSpatialIndexUpperBound;
     private int _prSpatialIndexLowerBound;
@@ -150,6 +152,10 @@ public class PhysicsSystem{
         this.polygonKinematicBodies     = new StructPool<PolygonPhysicsBody>(polygonKinematicBodies);
         this.circleRigidBodies          = new StructPool<CirclePhysicsBody>(circleRigidBodies);
         this.circleKinematicBodies      = new StructPool<CirclePhysicsBody>(circleKinematicBodies);
+        _neighbours = new HashSet<int>[polygonRigidBodies+circleRigidBodies];
+        for(int i = 0; i < _neighbours.Length; i++){
+            _neighbours[i] = new HashSet<int>();
+        }
 
 
         // set index offsets for spatial hash.
@@ -189,8 +195,9 @@ public class PhysicsSystem{
         _prToCkBroadIntersects                 = new List<(int,int)>();
 
         // SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(64,64),12,10);
-        SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(16,16),45,35);
-        
+        //SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(32,32),24,20);
+        SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(32,32),12,20);
+
         gravityEnabled                  = enableGravity;
     }
 
@@ -571,6 +578,7 @@ public class PhysicsSystem{
 
 
             MovementStep(stepModifier,i,steps);
+            FindNeighbours();
             BroadPhase(deltaTime);
             NarrowPhase(deltaTime);
             // CollisionsStep(deltaTime);
@@ -593,19 +601,10 @@ public class PhysicsSystem{
         MovementStepTimer.Reset();
         MovementStepTimer.Start();
 
-        Parallel.For(0, polygonRigidBodies.Capacity, i=>{
-        // for(int i = 0; i < polygonRigidBodies.Capacity; i++){
-            
-            // skip if not active.
-            
-            if(polygonRigidBodies.IsSlotActive(i) == false){
-                return;
-                // continue;
-            }
-
+        Parallel.For(0, polygonRigidBodies.ActiveSlots.Count, i=>{                        
             // get the body.
             
-            ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);
+            ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(polygonRigidBodies.ActiveSlots[i]);
             
             // apply force.
             // force = mass * acceleration.
@@ -627,24 +626,15 @@ public class PhysicsSystem{
             // movement
 
             body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
-        // }    
         });
 
         // move circle rigidbodies.
         
-        Parallel.For(0, circleRigidBodies.Capacity, i=>{
-        // for(int i = 0; i < circleRigidBodies.Capacity; i++){
-
-            // skip if not active.
-            
-            if(circleRigidBodies.IsSlotActive(i) == false){
-                return;
-                // continue;
-            }
+        Parallel.For(0, circleRigidBodies.ActiveSlots.Count, i=>{
 
             // get the body.
 
-            ref CirclePhysicsBody body = ref circleRigidBodies.GetData(i);
+            ref CirclePhysicsBody body = ref circleRigidBodies.GetData(circleRigidBodies.ActiveSlots[i]);
 
             // apply force.
 
@@ -661,12 +651,35 @@ public class PhysicsSystem{
             // movement
 
             body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
-        // }
         });
 
         MovementStepTimer.Stop();
     }
 
+    private void FindNeighbours(){
+        FindNeighboursTimer.Reset();
+        FindNeighboursTimer.Start();
+        
+        Parallel.For(0, polygonRigidBodies.Capacity, i=>{
+            if(polygonRigidBodies.IsSlotActive(i) == false){
+                return;
+            }
+
+            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
+            _neighbours[i].Clear();
+            SpatialHash.FindNear(a.Shape.Min, a.Shape.Max, 1, _neighbours[i]);
+        });
+        Parallel.For(0, circleRigidBodies.Capacity, i=>{
+            if(circleRigidBodies.IsSlotActive(i) == false){
+                return;
+            }
+
+            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(i);
+            _neighbours[i+_crSpatialIndexLowerBound].Clear();
+            SpatialHash.FindNear(a.Shape.Min, a.Shape.Max, 1, _neighbours[i+_crSpatialIndexLowerBound]);
+        });
+        FindNeighboursTimer.Stop();
+    }
 
     /// <summary>
     /// Detects collisions between all physics body colliders.
@@ -693,20 +706,15 @@ public class PhysicsSystem{
         // including PR, PK, and CK collisions.
         // =====================================
 
-        Parallel.For(0, polygonRigidBodies.Capacity, i => {
-            // skip if not active.
-
-            if(polygonRigidBodies.IsSlotActive(i) == false){
-                return;
-            }
+        Parallel.For(0, polygonRigidBodies.ActiveSlots.Count, x => {            
+            int i = polygonRigidBodies.ActiveSlots[x];
             
             // get the current body.
 
             ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
 
-            SpatialHash.FindNear(a.Shape.Min, a.Shape.Max, 1, out HashSet<int> neighbours);
 
-            foreach (int n in neighbours){
+            foreach (int n in _neighbours[i+_prSpatialIndexLowerBound]){
                 
                 int j = n;
                 
@@ -810,22 +818,16 @@ public class PhysicsSystem{
         // CR to PR is done here for performance reasons. 
         // ==============
 
-        Parallel.For(0, circleRigidBodies.Capacity, i =>{
-            
-            // skip if the slot is not active.
-            
-            if(circleRigidBodies.IsSlotActive(i) == false){
-                return;
-            }
+        Parallel.For(0, circleRigidBodies.ActiveSlots.Count, x => {            
+            int i = circleRigidBodies.ActiveSlots[x];
 
             // get the current circle.
 
             ref CirclePhysicsBody a = ref circleRigidBodies.GetData(i);
-            SpatialHash.FindNear(a.Shape.Min, a.Shape.Max, 1, out HashSet<int> neighbours);
 
             // loop through found neighbours.
 
-            foreach (int n in neighbours){
+            foreach (int n in _neighbours[i+_crSpatialIndexLowerBound]){
                 
                 int j = n;
 
@@ -931,7 +933,13 @@ public class PhysicsSystem{
         BroadTimer.Stop();
     }
 
-    public void NarrowPhase(float deltaTime){
+
+    /// <summary>
+    /// Performs SAT collision detection on all physics bodies that passed the broad phase.
+    /// </summary>
+    /// <param name="deltaTime"></param>
+
+    private void NarrowPhase(float deltaTime){
         NarrowTimer.Reset();
         NarrowTimer.Start();
         
@@ -1216,16 +1224,15 @@ public class PhysicsSystem{
     }
 
 
+
+
     private void SpatialHashStep(float deltaTime){
         SpatialUpdateTimer.Reset();
         SpatialUpdateTimer.Start();
-        for(int i = 0; i < circleRigidBodies.Capacity; i++){
-            
-            // skip if not active.
-            
-            if(circleRigidBodies.IsSlotActive(i) == false){
-                continue;
-            }
+
+
+        for(int x = 0; x < circleRigidBodies.ActiveSlots.Count; x++){
+            int i = circleRigidBodies.ActiveSlots[x];
 
             // get body.
             
@@ -1237,14 +1244,9 @@ public class PhysicsSystem{
             body.SpatialHashIndices = indices;
         }
 
-        for(int i = 0; i < polygonRigidBodies.Capacity; i++){
+        for(int x = 0; x < polygonRigidBodies.ActiveSlots.Count; x++){
+            int i = polygonRigidBodies.ActiveSlots[x];
             
-            // skip if not active.
-            
-            if(polygonRigidBodies.IsSlotActive(i) == false){
-                continue;
-            }
-
             // get body.
 
             ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);  
