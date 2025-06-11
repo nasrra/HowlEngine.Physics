@@ -71,7 +71,9 @@ public class PhysicsSystem{
     private Vector2 gravity = new Vector2(0,0.0981f);
 
     public Stopwatch StepCallTimer = new Stopwatch();
-
+    public Stopwatch MovementStepTimer = new Stopwatch();
+    public Stopwatch CollisionTimer = new Stopwatch();
+    public Stopwatch ResponseTimer = new Stopwatch();
 
     /// <summary>
     /// Whether or not gavity is enabled.
@@ -455,6 +457,9 @@ public class PhysicsSystem{
 
     private void MovementStep(float stepModifier, int currentStep, int maxStep){
         
+        MovementStepTimer.Reset();
+        MovementStepTimer.Start();
+
         Parallel.For(0, polygonRigidBodies.Capacity, i=>{
         // for(int i = 0; i < polygonRigidBodies.Capacity; i++){
             
@@ -525,6 +530,8 @@ public class PhysicsSystem{
             body.Position += body.PhysicsBody.LinearVelocity * stepModifier;
         // }
         });
+
+        MovementStepTimer.Stop();
     }
 
 
@@ -535,6 +542,9 @@ public class PhysicsSystem{
 
     private void CollisionsStep(float deltaTime){
             
+        CollisionTimer.Reset();
+        CollisionTimer.Start();
+
         // detect rigid body collisions.
 
         CrToCrCollisions(deltaTime);
@@ -545,6 +555,8 @@ public class PhysicsSystem{
 
         PkToCrCollisions(deltaTime);
         PkToPrCollisions(deltaTime);
+
+        CollisionTimer.Stop();
     }
 
 
@@ -555,6 +567,9 @@ public class PhysicsSystem{
 
     private void ResponseStep(float deltaTime){
         
+        ResponseTimer.Reset();
+        ResponseTimer.Start();
+
         // collision response for circle rigid bodies.
 
         Parallel.For(0, _crToCrContacts.Count, i=>{
@@ -655,6 +670,8 @@ public class PhysicsSystem{
             );
         // }
         });
+
+        ResponseTimer.Stop();
     }
 
 
