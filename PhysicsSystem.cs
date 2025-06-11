@@ -18,49 +18,98 @@ public class PhysicsSystem{
     /// Collision manifold between circle rigid bodies.
     /// </summary>
     
-    private List<CollisionManifold> _crToCrContacts;
+    private List<CollisionManifold> _crToCrManifolds;
 
 
     /// <summary>
     /// Collision manifold between polygon rigid bodies.
     /// </summary>
 
-    private List<CollisionManifold> _prToPrContacts;
+    private List<CollisionManifold> _prToPrManifolds;
 
 
     /// <summary>
     /// Collision manifold between polygon to circle rigidbodies.
     /// </summary>
 
-    private List<CollisionManifold> _crToPrContacts;
+    private List<CollisionManifold> _crToPrManifolds;
 
 
     /// <summary>
     /// Collision manifold between circle kinematic to circle rigid bodies.
     /// </summary>
 
-    private List<CollisionManifold> _crToCkContacts;
+    private List<CollisionManifold> _crToCkManifolds;
 
 
     /// <summary>
     /// Collision manifold between polygon kinematic to polygon rigid bodies.
     /// </summary>
 
-    private List<CollisionManifold> _prToPkContacts;
+    private List<CollisionManifold> _prToPkManifolds;
 
 
     /// <summary>
     /// Collision manifold between polygon kinematic to circle rigid bodies.
     /// </summary>
 
-    private List<CollisionManifold> _crToPkContacts;
+    private List<CollisionManifold> _crToPkManifolds;
 
 
     /// <summary>
-    /// Collision manifold between circle kinematic to polygon rigid bodies.
+    /// Collision manifold between polygon rigid to circle kinematic bodies.
     /// </summary>
 
-    private List<CollisionManifold> _prToCkContacts;
+
+    private List<CollisionManifold> _prToCkManifolds;
+
+
+    /// <summary>
+    ///  circle to circle rigid bodies that have passed the broad phase.
+    /// </summary>
+    
+    private List<(int,int)> _crToCrBroadIntersects;
+
+
+    /// <summary>
+    /// polygon to polygon rigid bodies that have passed the broad phase.
+    /// </summary>
+
+    private List<(int,int)> _prToPrBroadIntersects;
+
+
+    /// <summary>
+    /// circle to polygon rigid bodies that have passed the broad phase.
+    /// </summary>
+
+    private List<(int,int)> _crToPrBroadIntersects;
+
+
+    /// <summary>
+    /// circle rigid to circle kinematic bodies that have passed the broad phase.
+    /// </summary>
+
+    private List<(int,int)> _crToCkBroadIntersects;
+
+
+    /// <summary>
+    /// polygon rigid to polygon kinematic bodies that have passed the broad phase.
+    /// </summary>
+
+    private List<(int,int)> _prToPkBroadIntersects;
+
+
+    /// <summary>
+    /// circle rigid to polygon kinematic bodies that have passed the broad phase.
+    /// </summary>
+
+    private List<(int,int)> _crToPkBroadIntersects;
+
+    /// <summary>
+    /// polygon rigid to circle kinematic bodies that have passed the broad phase.
+    /// </summary>
+
+    private List<(int,int)> _prToCkBroadIntersects;
 
     public List<Vector2> ContactPoints;
 
@@ -72,8 +121,10 @@ public class PhysicsSystem{
 
     public Stopwatch StepCallTimer      = new Stopwatch();
     public Stopwatch MovementStepTimer  = new Stopwatch();
-    public Stopwatch CollisionTimer     = new Stopwatch();
+    public Stopwatch BroadTimer         = new Stopwatch();
+    public Stopwatch NarrowTimer        = new Stopwatch();
     public Stopwatch ResponseTimer      = new Stopwatch();
+    public Stopwatch SpatialUpdateTimer = new Stopwatch();
 
     private int _prSpatialIndexUpperBound;
     private int _prSpatialIndexLowerBound;
@@ -116,15 +167,30 @@ public class PhysicsSystem{
             throw new InvalidOperationException("[PhysicsSystem]: Maximum physics body amount exceeded, lower a body count for this physics system.");
         }
 
-        _crToCrContacts                 = new List<CollisionManifold>();
-        _prToPrContacts                 = new List<CollisionManifold>();
-        _crToPrContacts                 = new List<CollisionManifold>();
-        _crToCkContacts                 = new List<CollisionManifold>();
-        _prToPkContacts                 = new List<CollisionManifold>();
-        _crToPkContacts                 = new List<CollisionManifold>();
-        _prToCkContacts                 = new List<CollisionManifold>();
-        ContactPoints                   = new List<Vector2>();
-        SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(16,16),45,30);
+        // initialise manifold storage.
+
+        _crToCrManifolds                 = new List<CollisionManifold>();
+        _prToPrManifolds                 = new List<CollisionManifold>();
+        _crToPrManifolds                 = new List<CollisionManifold>();
+        _crToCkManifolds                 = new List<CollisionManifold>();
+        _prToPkManifolds                 = new List<CollisionManifold>();
+        _crToPkManifolds                 = new List<CollisionManifold>();
+        _prToCkManifolds                 = new List<CollisionManifold>();
+        ContactPoints                    = new List<Vector2>();
+        
+        // initialise broad phase stoarge.
+
+        _crToCrBroadIntersects                 = new List<(int,int)>();
+        _prToPrBroadIntersects                 = new List<(int,int)>();
+        _crToPrBroadIntersects                 = new List<(int,int)>();
+        _crToCkBroadIntersects                 = new List<(int,int)>();
+        _prToPkBroadIntersects                 = new List<(int,int)>();
+        _crToPkBroadIntersects                 = new List<(int,int)>();
+        _prToCkBroadIntersects                 = new List<(int,int)>();
+
+        // SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(64,64),12,10);
+        SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(16,16),45,35);
+        
         gravityEnabled                  = enableGravity;
     }
 
@@ -484,18 +550,30 @@ public class PhysicsSystem{
         
 
         for(int i = 0; i < steps; i++){
-            // clear all contacts for the step.        
+            // clear previous frame temp storage.        
             
-            _crToCrContacts.Clear();
-            _prToPrContacts.Clear();
-            _crToPrContacts.Clear();
-            _crToCkContacts.Clear();
-            _prToPkContacts.Clear();
-            _crToPkContacts.Clear();
-            _prToCkContacts.Clear();
+            _crToCrManifolds.Clear();
+            _prToPrManifolds.Clear();
+            _crToPrManifolds.Clear();
+            _crToCkManifolds.Clear();
+            _prToPkManifolds.Clear();
+            _crToPkManifolds.Clear();
+            _prToCkManifolds.Clear();
+
+            _crToCrBroadIntersects.Clear();
+            _prToPrBroadIntersects.Clear();
+            _crToPrBroadIntersects.Clear();
+            _crToCkBroadIntersects.Clear();
+            _prToPkBroadIntersects.Clear();
+            _crToPkBroadIntersects.Clear();
+            _prToCkBroadIntersects.Clear();
+
+
 
             MovementStep(stepModifier,i,steps);
-            CollisionsStep(deltaTime);
+            BroadPhase(deltaTime);
+            NarrowPhase(deltaTime);
+            // CollisionsStep(deltaTime);
             ResponseStep(deltaTime);
             SpatialHashStep(deltaTime);
         }
@@ -595,10 +673,10 @@ public class PhysicsSystem{
     /// </summary>
     /// <param name="deltaTime"></param>
 
-    private void CollisionsStep(float deltaTime){
+    private void BroadPhase(float deltaTime){
             
-        CollisionTimer.Reset();
-        CollisionTimer.Start();
+        BroadTimer.Reset();
+        BroadTimer.Start();
 
 
         // =====================================================================================================================
@@ -663,27 +741,8 @@ public class PhysicsSystem{
                         continue;
                     }
 
-                    // Narrow phase: SAT collision check.
+                    _prToPrBroadIntersects.Add((i,j));
 
-                    if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
-                        
-                        // push apart from eachother.
-                        
-                        a.Position -= normal * depth * 0.5f;
-                        b.Position += normal * depth * 0.5f;
-
-                        // add to collision manifold for cummulative resolutions.
-
-                        _prToPrContacts.Add(new CollisionManifold(
-                            normal,
-                            Vector2.Zero,
-                            Vector2.Zero,
-                            depth,
-                            i,
-                            j
-                        ));
-                    }
-                    
                     // continue to next neighbour.
                     
                     continue;
@@ -723,27 +782,8 @@ public class PhysicsSystem{
                         continue;
                     }
 
-                    // Narrow phase: SAT collision check.
+                    _prToPkBroadIntersects.Add((i,j));
 
-                    if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
-                        
-                        // push the rigid away from the kinematic.
-                        
-                        a.Position -= normal * depth;
-
-                        // add to collision manifold for cummulative resolutions.
-
-                        _prToPkContacts.Add(new CollisionManifold(
-                            normal,
-                            Vector2.Zero,
-                            Vector2.Zero,
-                            depth,
-                            i,
-                            j
-                        ));
-                    
-                    }
-                    
                     // continue to next neighbour.
 
                     continue;
@@ -813,26 +853,7 @@ public class PhysicsSystem{
                         continue;
                     }
 
-                    // Narrow phase: SAT collision check.
-
-                    if(Collections.Shapes.Util.Intersect(ref b.Shape, ref a.Shape, out Vector2 normal, out float depth)){
-
-                        // push apart by half from eachother.
-
-                        a.Position += normal * depth * 0.5f;
-                        b.Position -= normal * depth * 0.5f;
-
-                        // add to collision manifold for cummulative resolutions.
-
-                        _crToPrContacts.Add(new CollisionManifold(
-                            normal,
-                            Vector2.Zero,
-                            Vector2.Zero,
-                            depth,
-                            i,
-                            j
-                        ));
-                    }
+                    _crToPrBroadIntersects.Add((i,j));
 
                     // continue to next neighbour.
                     
@@ -867,26 +888,7 @@ public class PhysicsSystem{
                         continue;
                     }
 
-                    // Narrow phase: SAT collision check.
-
-                    if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out Vector2 contactPoint, out float depth) == true){
-
-                        // push apart by half from eachother.
-
-                        a.Position += normal * depth * 0.5f;
-                        b.Position -= normal * depth * 0.5f;
-
-                        // add to collision manifold for cummulative resolutions.
-
-                        _crToCrContacts.Add(new CollisionManifold(
-                            normal,
-                            Vector2.Zero,
-                            Vector2.Zero,
-                            depth,
-                            i,
-                            j
-                        ));
-                    }
+                    _crToCrBroadIntersects.Add((i,j));
                 
                     // continue to next neighbour.
                     
@@ -915,26 +917,8 @@ public class PhysicsSystem{
                         continue;
                     }
 
-                    // Narrow phase: SAT collision check.
+                    _crToPkBroadIntersects.Add((i,j));
 
-                    if(Collections.Shapes.Util.Intersect(ref b.Shape, ref a.Shape, out Vector2 normal, out float depth)){
-
-                        // push apart by half from eachother.
-
-                        a.Position += normal * depth * 0.5f;
-
-                        // add to collision manifold for cummulative resolutions.
-
-                        _crToPkContacts.Add(new CollisionManifold(
-                            normal,
-                            Vector2.Zero,
-                            Vector2.Zero,
-                            depth,
-                            i,
-                            j
-                        ));
-                    }
-                
                     // continue to next neighbour.
                     
                     continue;
@@ -944,7 +928,175 @@ public class PhysicsSystem{
         });
 
 
-        CollisionTimer.Stop();
+        BroadTimer.Stop();
+    }
+
+    public void NarrowPhase(float deltaTime){
+        NarrowTimer.Reset();
+        NarrowTimer.Start();
+        
+        
+        Parallel.For(0, _crToCrBroadIntersects.Count, i=>{
+        // for(int i = 0; i < _crToCrBroadIntersects.Count; i++){
+
+            // get the two colliding bodies.
+
+            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(_crToCrBroadIntersects[i].Item1);
+            ref CirclePhysicsBody b = ref circleRigidBodies.GetData(_crToCrBroadIntersects[i].Item2);
+
+            // perform a SAT check.
+
+            if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out Vector2 contactPoint, out float depth) == true){
+
+                // push apart by half from eachother.
+
+                a.Position += normal * depth * 0.5f;
+                b.Position -= normal * depth * 0.5f;
+
+                // add to collision manifold for cummulative resolutions.
+
+                _crToCrManifolds.Add(new CollisionManifold(
+                    normal,
+                    Vector2.Zero,
+                    Vector2.Zero,
+                    depth,
+                    _crToCrBroadIntersects[i].Item1,
+                    _crToCrBroadIntersects[i].Item2
+                ));
+            }
+        // }
+        });
+
+        Parallel.For(0, _prToPrBroadIntersects.Count, i=>{
+        // for(int i = 0; i < _prToPrBroadIntersects.Count; i++){
+
+            // get the two colliding bodies.
+
+            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(_prToPrBroadIntersects[i].Item1);
+            ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(_prToPrBroadIntersects[i].Item2);
+
+            // perform SAT check.
+
+            if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
+                
+                // push apart from eachother.
+                
+                a.Position -= normal * depth * 0.5f;
+                b.Position += normal * depth * 0.5f;
+
+                // add to collision manifold for cummulative resolutions.
+
+                _prToPrManifolds.Add(new CollisionManifold(
+                    normal,
+                    Vector2.Zero,
+                    Vector2.Zero,
+                    depth,
+                    _prToPrBroadIntersects[i].Item1,
+                    _prToPrBroadIntersects[i].Item2
+                ));
+            }
+        // }
+        });
+
+        Parallel.For(0, _crToPrBroadIntersects.Count, i=>{
+        // for(int i = 0; i < _crToPrBroadIntersects.Count; i++){
+
+            // get the two colliding bodies.
+
+            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(_crToPrBroadIntersects[i].Item1);
+            ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(_crToPrBroadIntersects[i].Item2);            
+
+            // perform SAT  check.
+
+            if(Collections.Shapes.Util.Intersect(ref b.Shape, ref a.Shape, out Vector2 normal, out float depth)){
+
+                // push apart by half from eachother.
+
+                a.Position += normal * depth * 0.5f;
+                b.Position -= normal * depth * 0.5f;
+
+                // add to collision manifold for cummulative resolutions.
+
+                _crToPrManifolds.Add(new CollisionManifold(
+                    normal,
+                    Vector2.Zero,
+                    Vector2.Zero,
+                    depth,
+                    _crToPrBroadIntersects[i].Item1,
+                    _crToPrBroadIntersects[i].Item2
+                ));
+            }
+        // }
+        });
+
+        Parallel.For(0, _crToCkBroadIntersects.Count, i=>{
+
+        });
+
+        Parallel.For(0, _prToPkBroadIntersects.Count, i=>{
+        // for(int i = 0; i < _prToPkBroadIntersects.Count; i++){
+
+            // gett the two colliding bodies.
+            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(_prToPkBroadIntersects[i].Item1);
+            ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(_prToPkBroadIntersects[i].Item2);
+
+            // perform SAT check.
+
+            if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
+                
+                // push the rigid away from the kinematic.
+                
+                a.Position -= normal * depth;
+
+                // add to collision manifold for cummulative resolutions.
+
+                _prToPkManifolds.Add(new CollisionManifold(
+                    normal,
+                    Vector2.Zero,
+                    Vector2.Zero,
+                    depth,
+                    _prToPkBroadIntersects[i].Item1,
+                    _prToPkBroadIntersects[i].Item2
+                ));
+            
+            }
+        // }
+        });
+
+        Parallel.For(0, _crToPkBroadIntersects.Count, i=>{
+        // for(int i = 0; i < _crToPkBroadIntersects.Count; i++){
+
+            // get the two colliding bodies.
+
+            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(_crToPkBroadIntersects[i].Item1);
+            ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(_crToPkBroadIntersects[i].Item2);
+
+            // perform SAT check.
+
+            if(Collections.Shapes.Util.Intersect(ref b.Shape, ref a.Shape, out Vector2 normal, out float depth)){
+
+                // push apart by half from eachother.
+
+                a.Position += normal * depth * 0.5f;
+
+                // add to collision manifold for cummulative resolutions.
+
+                _crToPkManifolds.Add(new CollisionManifold(
+                    normal,
+                    Vector2.Zero,
+                    Vector2.Zero,
+                    depth,
+                    _crToPkBroadIntersects[i].Item1,
+                    _crToPkBroadIntersects[i].Item2
+                ));
+            }
+        // }
+        });
+
+        Parallel.For(0, _prToCkBroadIntersects.Count, i=>{
+
+        });
+        NarrowTimer.Stop();
     }
 
 
@@ -960,9 +1112,9 @@ public class PhysicsSystem{
 
         // collision response for circle rigid bodies.
 
-        Parallel.For(0, _crToCrContacts.Count, i=>{
+        Parallel.For(0, _crToCrManifolds.Count, i=>{
         // for(int i = 0; i < _crToCrContacts.Count; i++){
-            CollisionManifold manifold = _crToCrContacts[i];
+            CollisionManifold manifold = _crToCrManifolds[i];
             ResolveRigidToRigidCollision(
                 ref circleRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
                 ref circleRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
@@ -974,9 +1126,9 @@ public class PhysicsSystem{
         
         // collision response for polygon rigid bodies.
 
-        Parallel.For(0, _prToPrContacts.Count, i=>{
+        Parallel.For(0, _prToPrManifolds.Count, i=>{
         // for(int i = 0; i < _prToPrContacts.Count; i++){
-            CollisionManifold manifold = _prToPrContacts[i];
+            CollisionManifold manifold = _prToPrManifolds[i];
             ResolveRigidToRigidCollision(
                 ref polygonRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
                 ref polygonRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
@@ -988,10 +1140,10 @@ public class PhysicsSystem{
 
         // collision response for polygon to circle rigid bodies.
 
-        Parallel.For(0, _crToPrContacts.Count, i=>{
+        Parallel.For(0, _crToPrManifolds.Count, i=>{
         // for(int i = 0; i < _prToCrContacts.Count; i++){
 
-            CollisionManifold manifold = _crToPrContacts[i];
+            CollisionManifold manifold = _crToPrManifolds[i];
             ResolveRigidToRigidCollision(
                 ref circleRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
                 ref polygonRigidBodies.GetData(manifold.BodyIndexB).PhysicsBody,
@@ -1004,9 +1156,9 @@ public class PhysicsSystem{
 
         // collision response for polygon kinematic to rigid bodies.
 
-        Parallel.For(0, _prToPkContacts.Count, i=>{
+        Parallel.For(0, _prToPkManifolds.Count, i=>{
         // for(int i = 0; i < _pkToPrContacts.Count; i++){
-            CollisionManifold manifold = _prToPkContacts[i];
+            CollisionManifold manifold = _prToPkManifolds[i];
             ResolveRigidToKinematicCollision(
                 ref polygonRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
                 ref polygonKinematicBodies.GetData(manifold.BodyIndexB).PhysicsBody,
@@ -1033,10 +1185,10 @@ public class PhysicsSystem{
 
         // // collision response for polygon kinematic to circle rigid bodies.
 
-        Parallel.For(0, _crToPkContacts.Count, i=>{
+        Parallel.For(0, _crToPkManifolds.Count, i=>{
         // for(int i = 0; i < _pkToCrContacts.Count; i++){
 
-            CollisionManifold manifold = _crToPkContacts[i];
+            CollisionManifold manifold = _crToPkManifolds[i];
             ResolveRigidToKinematicCollision(
                 ref circleRigidBodies.GetData(manifold.BodyIndexA).PhysicsBody,
                 ref polygonKinematicBodies.GetData(manifold.BodyIndexB).PhysicsBody,
@@ -1065,6 +1217,8 @@ public class PhysicsSystem{
 
 
     private void SpatialHashStep(float deltaTime){
+        SpatialUpdateTimer.Reset();
+        SpatialUpdateTimer.Start();
         for(int i = 0; i < circleRigidBodies.Capacity; i++){
             
             // skip if not active.
@@ -1100,6 +1254,7 @@ public class PhysicsSystem{
             SpatialHash.Update(i+_prSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max, out List<int> indices);
             body.SpatialHashIndices = indices;
         }
+        SpatialUpdateTimer.Stop();
     }
 
     private void ResolveRigidToRigidCollision(ref PhysicsBody a, ref PhysicsBody b, Vector2 normal, float depth){
