@@ -9,10 +9,10 @@ namespace HowlEngine.Physics;
 public class PhysicsSystem{
 
     public SpatialHash<int> SpatialHash;
-    private StructPool<PolygonPhysicsBody>  polygonRigidBodies;
-    private StructPool<CirclePhysicsBody>   circleRigidBodies;
-    private StructPool<PolygonPhysicsBody>  polygonKinematicBodies;
-    private StructPool<CirclePhysicsBody>   circleKinematicBodies;
+    public StructPool<PolygonPhysicsBody>  polygonRigidBodies       {   get; private set;  }
+    public StructPool<CirclePhysicsBody>   circleRigidBodies        {   get; private set;  }
+    public StructPool<PolygonPhysicsBody>  polygonKinematicBodies   {   get; private set;  }
+    public StructPool<CirclePhysicsBody>   circleKinematicBodies    {   get; private set;  }
     private HashSet<int>[] _neighbours;
     
     
@@ -138,6 +138,18 @@ public class PhysicsSystem{
     private int _ckSpatialIndexUpperBound;
     private int _ckSpatialIndexLowerBound;
 
+    // thread indexes for each list.
+
+    private const int _prToPrLocalThreadIndex = 0;
+    private const int _prToPkLocalThreadIndex = 1;
+    private const int _prToCkLocalThreadIndex = 2;
+
+    private const int _crToCrLocalThreadIndex = 0;
+    private const int _crToPrLocalThreadIndex = 1;
+    private const int _crToPkLocalThreadIndex = 2;
+    private const int _crToCkLocalThreadIndex = 3;
+
+
     /// <summary>
     /// Whether or not gavity is enabled.
     /// </summary>
@@ -160,6 +172,8 @@ public class PhysicsSystem{
 
 
         // set index offsets for spatial hash.
+        //  Note:
+        // Order matters here, do not change these values, ever.
 
         _prSpatialIndexLowerBound = 0;
         _prSpatialIndexUpperBound = polygonRigidBodies;
@@ -449,79 +463,6 @@ public class PhysicsSystem{
         circleKinematicBodies.Free(index);
     }
 
-
-    /// <summary>
-    /// Gets a copy of all rigid polygon body colliders in this physics system.
-    /// </summary>
-    /// <returns></returns>
-
-    public List<Polygon> CopyPolygonRigidBodyColliders(){
-
-        // create the copy list.
-
-        List<Polygon> colliders = new List<Polygon>();
-        
-        // copy all colliders.
-        
-        for(int i = 0; i < polygonRigidBodies.Capacity; i++){
-            if(polygonRigidBodies.IsSlotActive(i) == true){
-                ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);
-                colliders.Add(body.Shape);
-            }
-        }
-
-        return colliders;
-    }
-
-
-    /// <summary>
-    /// Gets a copy of all kinematic polygon body colliders in this physics system.
-    /// </summary>
-    /// <returns></returns>
-
-    public List<Polygon> CopyPolygonKinematicColliders(){
-
-        // create the copy list.
-
-        List<Polygon> colliders = new List<Polygon>();
-        
-        // copy all colliders.
-        
-        for(int i = 0; i < polygonKinematicBodies.Capacity; i++){
-            if(polygonKinematicBodies.IsSlotActive(i) == true){
-                ref PolygonPhysicsBody body = ref polygonKinematicBodies.GetData(i);
-                colliders.Add(body.Shape);
-            }
-        }
-
-        return colliders;
-    }
-
-
-    /// <summary>
-    /// Gets a copy of all rigid circle body colliders in this physics system.
-    /// </summary>
-    /// <returns></returns>
-
-    public List<Circle> CopyCircleRigidBodyColliders(){
-
-        // create the copy list.
-
-        List<Circle> colliders = new List<Circle>();
-
-        // copy all colliders.
-
-        for(int i = 0; i < circleRigidBodies.Capacity; i++){
-            if(circleRigidBodies.IsSlotActive(i) == true){
-                ref CirclePhysicsBody body = ref circleRigidBodies.GetData(i);
-                colliders.Add(body.Shape);
-            }
-        }
-
-        return colliders;
-
-    }
-
     
     /// <summary>
     /// Gets a RefView to directly access a physics body within this physics system.
@@ -579,7 +520,6 @@ public class PhysicsSystem{
             FindNeighbours();
             BroadPhase(deltaTime);
             NarrowPhase(deltaTime);
-            // CollisionsStep(deltaTime);
             ResponseStep(deltaTime);
             SpatialHashStep(deltaTime);
         }
@@ -705,109 +645,144 @@ public class PhysicsSystem{
         // including PR, PK, and CK collisions.
         // =====================================
 
-        Parallel.For(0, polygonRigidBodies.ActiveSlots.Count, x => {            
-            int i = polygonRigidBodies.ActiveSlots[x];
-            
-            // get the current body.
+        Parallel.For(0, polygonRigidBodies.ActiveSlots.Count,
+            () => new List<(int, int)>[3]  // thread-local initializer creates an array of 7 lists
+            {
+                new List<(int,int)>(),
+                new List<(int,int)>(),
+                new List<(int,int)>()
+            },
+            (x, state, localLists) =>{
 
-            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
+                int i = polygonRigidBodies.ActiveSlots[x];
+                ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(i);
 
+                foreach (int n in _neighbours[i + _prSpatialIndexLowerBound]){
 
-            foreach (int n in _neighbours[i+_prSpatialIndexLowerBound]){
-                
-                int j = n;
-                
+                    int j = n;
 
-                // ==========================
-                // PR to PR collisions
-                // ==========================
-                
-                if(j < _prSpatialIndexUpperBound){
+                    // ==========================
+                    // PR to PR collisions
+                    // ==========================
                     
-                    // put 'j' into the struct pool index range.
+                    if(j < _prSpatialIndexUpperBound){
+                        
+                        // put 'j' into the struct pool index range.
 
-                    j -= _prSpatialIndexLowerBound;
-                    
-                    if(j <= i){
-    
-                        // continue to next neighbour.
-                    
-                        continue;
-                    }
+                        j -= _prSpatialIndexLowerBound;
+                        
+                        if(j <= i){
+        
+                            // continue to next neighbour.
+                        
+                            continue;
+                        }
 
-                    // get the other body.
+                        // get the other body.
 
-                    ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(j);
+                        ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(j);
 
-                    // Broad phase: AABB collision check.
-                    
-                    if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
+                        // Broad phase: AABB collision check.
+                        
+                        if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
+
+                            // continue to next neighbour.
+                            
+                            continue;
+                        }
+
+                        // add to local list.
+
+                        localLists[_prToPrLocalThreadIndex].Add((i, j));
 
                         // continue to next neighbour.
                         
                         continue;
                     }
 
-                    _prToPrBroadIntersects.Add((i,j));
 
-                    // continue to next neighbour.
+                    // =========
+                    // CR to PR.
+                    // =========
+
+                    if(j < _crSpatialIndexUpperBound){
                     
-                    continue;
-                }
-
-
-                // =========
-                // CR to PR.
-                // =========
-
-                if(j < _crSpatialIndexUpperBound){
-                
-                    // continue to next neighbour.
-                    
-                    continue;                
-                }
-
-
-                // ====================
-                // PR to PK collisions.
-                // ====================
-
-                else if(j < _pkSpatialIndexUpperBound){
-
-                    // put 'j' into the struct pool index range.
-
-                    j -= _pkSpatialIndexLowerBound;
-
-                    ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(j);
-
-                    // Broad phase: AABB collision check.
-
-                    if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
-    
                         // continue to next neighbour.
-                    
+                        
+                        continue;                
+                    }
+
+
+                    // ====================
+                    // PR to PK collisions.
+                    // ====================
+
+                    else if(j < _pkSpatialIndexUpperBound){
+
+                        // put 'j' into the struct pool index range.
+
+                        j -= _pkSpatialIndexLowerBound;
+
+                        ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(j);
+
+                        // Broad phase: AABB collision check.
+
+                        if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
+        
+                            // continue to next neighbour.
+                        
+                            continue;
+                        }
+
+                        // add to local list.
+
+                        localLists[_prToPkLocalThreadIndex].Add((i,j));
+
+                        // continue to next neighbour.
+
                         continue;
                     }
 
-                    _prToPkBroadIntersects.Add((i,j));
 
-                    // continue to next neighbour.
 
-                    continue;
+                    // ===================
+                    // PR to CK collisions
+                    // ===================
+                
+
+                    else if(j < _ckSpatialIndexUpperBound){
+                        throw new NotImplementedException();
+                    }
                 }
 
+                // return the local threads lists.
 
-                // ===================
-                // PR to CK collisions
-                // ===================
-            
+                return localLists;
 
-                else if(j < _ckSpatialIndexUpperBound){
-                    throw new NotImplementedException();
+            },
+            localLists => {
+                // Add all six lists from this thread to your concurrent bag or merge later
+                for(int i = 0; i < localLists.Length; i++){
+                    switch(i){
+                        case _prToPrLocalThreadIndex:
+                            lock(_prToPrBroadIntersects){
+                                _prToPrBroadIntersects.AddRange(localLists[i]);
+                            }
+                            break;
+                        case _prToPkLocalThreadIndex:
+                            lock(_prToPkBroadIntersects){
+                                _prToPkBroadIntersects.AddRange(localLists[i]);
+                            }
+                            break;
+                        case _prToCkLocalThreadIndex:
+                            lock(_prToCkBroadIntersects){
+                                _prToCkBroadIntersects.AddRange(localLists[i]);
+                            }
+                            break;
+                    }
                 }
             }
-        });
-
+        );
 
 
         // ==============
@@ -817,117 +792,165 @@ public class PhysicsSystem{
         // CR to PR is done here for performance reasons. 
         // ==============
 
-        Parallel.For(0, circleRigidBodies.ActiveSlots.Count, x => {            
-            int i = circleRigidBodies.ActiveSlots[x];
+        Parallel.For(0, circleRigidBodies.ActiveSlots.Count,
+            () => new List<(int, int)>[4]  // thread-local initializer creates an array of 7 lists
+            {
+                new List<(int,int)>(),
+                new List<(int,int)>(),
+                new List<(int,int)>(),
+                new List<(int,int)>()
+            },
+            (x, state, localLists) =>{
 
-            // get the current circle.
+                int i = circleRigidBodies.ActiveSlots[x];
+                ref CirclePhysicsBody a = ref circleRigidBodies.GetData(i);
 
-            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(i);
+                foreach (int n in _neighbours[i + _crSpatialIndexLowerBound]){
 
-            // loop through found neighbours.
+                    int j = n;
 
-            foreach (int n in _neighbours[i+_crSpatialIndexLowerBound]){
-                
-                int j = n;
+                    // =========
+                    // CR to PR.
+                    // =========
 
+                    if(j < _prSpatialIndexUpperBound){
 
-                // =========
-                // CR to PR.
-                // =========
+                        // put 'j' into the struct pool index range.
 
-                if(j < _prSpatialIndexUpperBound){
+                        j -= _prSpatialIndexLowerBound;   
 
-                    // put 'j' into the struct pool index range.
+                        // get the other circle.
 
-                    j -= _prSpatialIndexLowerBound;   
+                        ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(j);
 
-                    // get the other circle.
+                        // Broad phase: AABB collision check.
 
-                    ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(j);
+                        if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
 
-                    // Broad phase: AABB collision check.
+                            // continue to next neighbour.
+                        
+                            continue;
+                        }
 
-                    if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
+                        // add to local thread list.
+
+                        localLists[_crToPrLocalThreadIndex].Add((i,j));
 
                         // continue to next neighbour.
-                    
+                        
                         continue;
                     }
 
-                    _crToPrBroadIntersects.Add((i,j));
 
-                    // continue to next neighbour.
+                    // ===========
+                    // CR to CR.
+                    // ===========
+
+                    else if( j < _crSpatialIndexUpperBound){
+                        
+                        // put 'j' into the struct pool index range.
+
+                        j -= _crSpatialIndexLowerBound;
+
+                        if(j<=i){
+                            // continue to next neighbour.
+                        
+                            continue;
+                        }
                     
-                    continue;
+                        ref CirclePhysicsBody b = ref circleRigidBodies.GetData(j);
+
+                        // Broad phase: AABB collision check.
+
+                        if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
+        
+                            // continue to next neighbour.
+                        
+                            continue;
+                        }
+
+                        // add to local thread list.
+
+                        localLists[_crToCrLocalThreadIndex].Add((i,j));
+
+                        // continue to next neighbour.
+                        
+                        continue;
+                    }
+
+
+                    // ========= 
+                    // CR to PK.
+                    // =========
+
+                    else if(j < _pkSpatialIndexUpperBound){
+
+                        // put 'j' into the struct pool index range.
+
+                        j -= _pkSpatialIndexLowerBound;
+                    
+
+                        ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(j);
+
+                        // Broad phase: AABB collision check.
+
+                        if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
+        
+                            // continue to next neighbour.
+                        
+                            continue;
+                        }
+
+                        // add to local thread list.
+
+                        localLists[_crToPkLocalThreadIndex].Add((i,j));
+
+                        // continue to next neighbour.
+                        
+                        continue;
+                    }
+
+                    // ===================
+                    // CR to CK collisions
+                    // ===================
+                
+
+                    else if(j < _ckSpatialIndexUpperBound){
+                        throw new NotImplementedException();
+                    }
+                
                 }
 
+                // return the local threads lists.
 
-                // ===========
-                // CR to CR.
-                // ===========
+                return localLists;
 
-                else if( j < _crSpatialIndexUpperBound){
-                    
-                    // put 'j' into the struct pool index range.
-
-                    j -= _crSpatialIndexLowerBound;
-
-                    if(j<=i){
-                        // continue to next neighbour.
-                    
-                        continue;
-                    }
+            },
+            localLists => {
                 
-                    ref CirclePhysicsBody b = ref circleRigidBodies.GetData(j);
-
-                    // Broad phase: AABB collision check.
-
-                    if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
-    
-                        // continue to next neighbour.
-                    
-                        continue;
-                    }
-
-                    _crToCrBroadIntersects.Add((i,j));
+                // Add all six lists from this thread to your concurrent bag or merge later
                 
-                    // continue to next neighbour.
-                    
-                    continue;
+                for(int i = 0; i < localLists.Length; i++){
+                    switch(i){
+                        case _crToCrLocalThreadIndex:
+                            lock(_crToCrBroadIntersects){
+                                _crToCrBroadIntersects.AddRange(localLists[i]);
+                            }
+                            break;
+                        case _crToPrLocalThreadIndex:
+                            lock(_crToPrBroadIntersects){
+                                _crToPrBroadIntersects.AddRange(localLists[i]);
+                            }
+                            break;
+                        case _crToPkLocalThreadIndex:
+                            lock(_crToPkBroadIntersects){
+                                _crToPkBroadIntersects.AddRange(localLists[i]);
+                            }
+                            break;
+                    }
                 }
-
-                // ========= 
-                // CR to PK.
-                // =========
-
-                else if(j < _pkSpatialIndexUpperBound){
-
-                    // put 'j' into the struct pool index range.
-
-                    j -= _pkSpatialIndexLowerBound;
-                
-
-                    ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(j);
-
-                    // Broad phase: AABB collision check.
-
-                    if(Collections.Shapes.Util.Intersect(a.Shape.Min, a.Shape.Max, b.Shape.Min, b.Shape.Max) == false){
-    
-                        // continue to next neighbour.
-                    
-                        continue;
-                    }
-
-                    _crToPkBroadIntersects.Add((i,j));
-
-                    // continue to next neighbour.
-                    
-                    continue;
-                }
-
             }
-        });
-
+        );
 
         BroadTimer.Stop();
     }
@@ -943,67 +966,73 @@ public class PhysicsSystem{
         NarrowTimer.Start();
         
         
-        Parallel.For(0, _crToCrBroadIntersects.Count, i=>{
-        // for(int i = 0; i < _crToCrBroadIntersects.Count; i++){
+        Parallel.For(0, _crToCrBroadIntersects.Count,
+            () => new List<CollisionManifold>(), // thread-local list
+            (i, state, localManifolds) => {
 
-            // get the two colliding bodies.
+                ref CirclePhysicsBody a = ref circleRigidBodies.GetData(_crToCrBroadIntersects[i].Item1);
+                ref CirclePhysicsBody b = ref circleRigidBodies.GetData(_crToCrBroadIntersects[i].Item2);
 
-            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(_crToCrBroadIntersects[i].Item1);
-            ref CirclePhysicsBody b = ref circleRigidBodies.GetData(_crToCrBroadIntersects[i].Item2);
+                if (Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out Vector2 contactPoint, out float depth)) {
+                    a.Position += normal * depth * 0.5f;
+                    b.Position -= normal * depth * 0.5f;
 
-            // perform a SAT check.
+                    localManifolds.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        _crToCrBroadIntersects[i].Item1,
+                        _crToCrBroadIntersects[i].Item2
+                    ));
+                }
 
-            if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out Vector2 contactPoint, out float depth) == true){
-
-                // push apart by half from eachother.
-
-                a.Position += normal * depth * 0.5f;
-                b.Position -= normal * depth * 0.5f;
-
-                // add to collision manifold for cummulative resolutions.
-
-                _crToCrManifolds.Add(new CollisionManifold(
-                    normal,
-                    Vector2.Zero,
-                    Vector2.Zero,
-                    depth,
-                    _crToCrBroadIntersects[i].Item1,
-                    _crToCrBroadIntersects[i].Item2
-                ));
-            }
-        // }
+                return localManifolds;
+            },
+            localManifolds => {
+                // merge at the end on main thread
+                lock (_crToCrManifolds) {
+                    _crToCrManifolds.AddRange(localManifolds);
+                }
         });
 
-        Parallel.For(0, _prToPrBroadIntersects.Count, i=>{
-        // for(int i = 0; i < _prToPrBroadIntersects.Count; i++){
+        Parallel.For(0, _prToPrBroadIntersects.Count,
+            () => new List<CollisionManifold>(), // Thread-local initializer
+            (i, state, localManifolds) =>
+            {
+                // Get the two colliding bodies.
+                ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(_prToPrBroadIntersects[i].Item1);
+                ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(_prToPrBroadIntersects[i].Item2);
 
-            // get the two colliding bodies.
+                // Perform SAT check.
+                if (Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth))
+                {
+                    // Push apart from each other.
+                    a.Position -= normal * depth * 0.5f;
+                    b.Position += normal * depth * 0.5f;
 
-            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(_prToPrBroadIntersects[i].Item1);
-            ref PolygonPhysicsBody b = ref polygonRigidBodies.GetData(_prToPrBroadIntersects[i].Item2);
+                    // Add result to thread-local list.
+                    localManifolds.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        _prToPrBroadIntersects[i].Item1,
+                        _prToPrBroadIntersects[i].Item2
+                    ));
+                }
 
-            // perform SAT check.
-
-            if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
-                
-                // push apart from eachother.
-                
-                a.Position -= normal * depth * 0.5f;
-                b.Position += normal * depth * 0.5f;
-
-                // add to collision manifold for cummulative resolutions.
-
-                _prToPrManifolds.Add(new CollisionManifold(
-                    normal,
-                    Vector2.Zero,
-                    Vector2.Zero,
-                    depth,
-                    _prToPrBroadIntersects[i].Item1,
-                    _prToPrBroadIntersects[i].Item2
-                ));
-            }
-        // }
+                return localManifolds;
+            },
+            localManifolds =>
+            {
+                // Merge local lists with final list once per thread.
+                lock (_prToPrManifolds)
+                {
+                    _prToPrManifolds.AddRange(localManifolds);
+                }
         });
+
 
         Parallel.For(0, _crToPrBroadIntersects.Count, i=>{
         // for(int i = 0; i < _crToPrBroadIntersects.Count; i++){
@@ -1040,65 +1069,71 @@ public class PhysicsSystem{
 
         });
 
-        Parallel.For(0, _prToPkBroadIntersects.Count, i=>{
-        // for(int i = 0; i < _prToPkBroadIntersects.Count; i++){
+        Parallel.For(0, _prToPkBroadIntersects.Count,
+            () => new List<CollisionManifold>(), // thread-local init
+            (i, state, localManifolds) =>
+            {
+                // Get the two colliding bodies.
+                ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(_prToPkBroadIntersects[i].Item1);
+                ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(_prToPkBroadIntersects[i].Item2);
 
-            // gett the two colliding bodies.
-            ref PolygonPhysicsBody a = ref polygonRigidBodies.GetData(_prToPkBroadIntersects[i].Item1);
-            ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(_prToPkBroadIntersects[i].Item2);
+                // Perform SAT check.
+                if (Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth))
+                {
+                    // Push the rigid away from the kinematic.
+                    a.Position -= normal * depth;
 
-            // perform SAT check.
+                    // Add to local list.
+                    localManifolds.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        _prToPkBroadIntersects[i].Item1,
+                        _prToPkBroadIntersects[i].Item2
+                    ));
+                }
 
-            if(Collections.Shapes.Util.Intersect(ref a.Shape, ref b.Shape, out Vector2 normal, out float depth)){
-                
-                // push the rigid away from the kinematic.
-                
-                a.Position -= normal * depth;
-
-                // add to collision manifold for cummulative resolutions.
-
-                _prToPkManifolds.Add(new CollisionManifold(
-                    normal,
-                    Vector2.Zero,
-                    Vector2.Zero,
-                    depth,
-                    _prToPkBroadIntersects[i].Item1,
-                    _prToPkBroadIntersects[i].Item2
-                ));
-            
-            }
-        // }
+                return localManifolds;
+            },
+            localManifolds =>
+            {
+                // Merge results once per thread (minimal locking).
+                lock (_prToPkManifolds)
+                {
+                    _prToPkManifolds.AddRange(localManifolds);
+                }
         });
 
-        Parallel.For(0, _crToPkBroadIntersects.Count, i=>{
-        // for(int i = 0; i < _crToPkBroadIntersects.Count; i++){
 
-            // get the two colliding bodies.
+        Parallel.For(0, _crToPkBroadIntersects.Count,
+            () => new List<CollisionManifold>(), // thread-local list initializer
+            (i, state, localManifolds) => {
 
-            ref CirclePhysicsBody a = ref circleRigidBodies.GetData(_crToPkBroadIntersects[i].Item1);
-            ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(_crToPkBroadIntersects[i].Item2);
+                ref CirclePhysicsBody a = ref circleRigidBodies.GetData(_crToPkBroadIntersects[i].Item1);
+                ref PolygonPhysicsBody b = ref polygonKinematicBodies.GetData(_crToPkBroadIntersects[i].Item2);
 
-            // perform SAT check.
+                if (Collections.Shapes.Util.Intersect(ref b.Shape, ref a.Shape, out Vector2 normal, out float depth)) {
+                    a.Position += normal * depth * 0.5f;
 
-            if(Collections.Shapes.Util.Intersect(ref b.Shape, ref a.Shape, out Vector2 normal, out float depth)){
+                    localManifolds.Add(new CollisionManifold(
+                        normal,
+                        Vector2.Zero,
+                        Vector2.Zero,
+                        depth,
+                        _crToPkBroadIntersects[i].Item1,
+                        _crToPkBroadIntersects[i].Item2
+                    ));
+                }
 
-                // push apart by half from eachother.
-
-                a.Position += normal * depth * 0.5f;
-
-                // add to collision manifold for cummulative resolutions.
-
-                _crToPkManifolds.Add(new CollisionManifold(
-                    normal,
-                    Vector2.Zero,
-                    Vector2.Zero,
-                    depth,
-                    _crToPkBroadIntersects[i].Item1,
-                    _crToPkBroadIntersects[i].Item2
-                ));
-            }
-        // }
+                return localManifolds;
+            },
+            localManifolds => {
+                lock (_crToPkManifolds) {
+                    _crToPkManifolds.AddRange(localManifolds);
+                }
         });
+
 
         Parallel.For(0, _prToCkBroadIntersects.Count, i=>{
 
@@ -1230,29 +1265,18 @@ public class PhysicsSystem{
         SpatialUpdateTimer.Start();
 
     
-        for(int x = 0; x < circleRigidBodies.ActiveSlots.Count; x++){
+        Parallel.For(0, circleRigidBodies.ActiveSlots.Count, x => {
             int i = circleRigidBodies.ActiveSlots[x];
+            ref CirclePhysicsBody body = ref circleRigidBodies.GetData(i);
+            SpatialHash.Update(i + _crSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max);
+        });
 
-            // get body.
-            
-            ref CirclePhysicsBody body = ref circleRigidBodies.GetData(i);  
-
-            // update spatial hash information.
-
-            SpatialHash.Update(i+_crSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max);
-        }
-
-        for(int x = 0; x < polygonRigidBodies.ActiveSlots.Count; x++){
+        Parallel.For(0, polygonRigidBodies.ActiveSlots.Count, x => {
             int i = polygonRigidBodies.ActiveSlots[x];
-            
-            // get body.
+            ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);
+            SpatialHash.Update(i + _prSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max);
+        });
 
-            ref PolygonPhysicsBody body = ref polygonRigidBodies.GetData(i);  
-
-            // update spatial hash information.
-
-            SpatialHash.Update(i+_prSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max);
-        }
         SpatialUpdateTimer.Stop();
     }
 
