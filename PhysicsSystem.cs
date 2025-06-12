@@ -2,6 +2,7 @@ using System.Numerics;
 using HowlEngine.Collections.Shapes;
 using HowlEngine.Collections;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace HowlEngine.Physics;
 
@@ -195,8 +196,8 @@ public class PhysicsSystem{
         _prToCkBroadIntersects                 = new List<(int,int)>();
 
         // SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(64,64),12,10);
-        //SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(32,32),24,20);
-        SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(32,32),12,20);
+        SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(32,32),96,60);
+        // SpatialHash                     = new SpatialHash<int>(new Vector2(-40,-40), new(32,32),12,20);
 
         gravityEnabled                  = enableGravity;
     }
@@ -230,10 +231,9 @@ public class PhysicsSystem{
             token.Id+_prSpatialIndexLowerBound, 
             body.Shape.Min, 
             body.Shape.Max, 
-            out List<int> indices
+            body.SpatialHashIndices
         );
         
-        body.SpatialHashIndices = indices;
 
         return token;
     }
@@ -269,10 +269,9 @@ public class PhysicsSystem{
             token.Id + _pkSpatialIndexLowerBound, 
             body.Shape.Min, 
             body.Shape.Max, 
-            out List<int> indices
+            body.SpatialHashIndices
         );
         
-        body.SpatialHashIndices = indices;
         return token;
     }
 
@@ -379,10 +378,9 @@ public class PhysicsSystem{
             token.Id + _crSpatialIndexLowerBound, 
             body.Shape.Min, 
             body.Shape.Max, 
-            out List<int> indices
+            body.SpatialHashIndices
         );
 
-        body.SpatialHashIndices = indices;
 
         return token;
     }
@@ -682,7 +680,7 @@ public class PhysicsSystem{
     }
 
     /// <summary>
-    /// Detects collisions between all physics body colliders.
+    /// Detects AABB collisions between all physics body colliders.
     /// </summary>
     /// <param name="deltaTime"></param>
 
@@ -690,6 +688,7 @@ public class PhysicsSystem{
             
         BroadTimer.Reset();
         BroadTimer.Start();
+
 
 
         // =====================================================================================================================
@@ -729,7 +728,7 @@ public class PhysicsSystem{
 
                     j -= _prSpatialIndexLowerBound;
                     
-                    if(j == i){
+                    if(j <= i){
     
                         // continue to next neighbour.
                     
@@ -873,7 +872,7 @@ public class PhysicsSystem{
 
                     j -= _crSpatialIndexLowerBound;
 
-                    if(j==i){
+                    if(j<=i){
                         // continue to next neighbour.
                     
                         continue;
@@ -1230,7 +1229,7 @@ public class PhysicsSystem{
         SpatialUpdateTimer.Reset();
         SpatialUpdateTimer.Start();
 
-
+    
         for(int x = 0; x < circleRigidBodies.ActiveSlots.Count; x++){
             int i = circleRigidBodies.ActiveSlots[x];
 
@@ -1240,8 +1239,7 @@ public class PhysicsSystem{
 
             // update spatial hash information.
 
-            SpatialHash.Update(i+_crSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max, out List<int> indices);
-            body.SpatialHashIndices = indices;
+            SpatialHash.Update(i+_crSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max);
         }
 
         for(int x = 0; x < polygonRigidBodies.ActiveSlots.Count; x++){
@@ -1253,8 +1251,7 @@ public class PhysicsSystem{
 
             // update spatial hash information.
 
-            SpatialHash.Update(i+_prSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max, out List<int> indices);
-            body.SpatialHashIndices = indices;
+            SpatialHash.Update(i+_prSpatialIndexLowerBound, body.SpatialHashIndices, body.Shape.Min, body.Shape.Max);
         }
         SpatialUpdateTimer.Stop();
     }
